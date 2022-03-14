@@ -4,8 +4,11 @@
  */
 package com.wireguard.android.viewmodel
 
+import android.net.wifi.WifiConfiguration.Status.ENABLED
+import android.os.Build
 import android.os.Parcel
 import android.os.Parcelable
+import androidx.annotation.RequiresApi
 import androidx.databinding.BaseObservable
 import androidx.databinding.Bindable
 import androidx.databinding.Observable
@@ -71,12 +74,25 @@ class PeerProxy : BaseObservable, Parcelable {
     val isExcludingPrivateIps: Boolean
         get() = allowedIpsState == AllowedIpsState.CONTAINS_IPV4_PUBLIC_NETWORKS
 
+    /* Custom change begin (HSMRatchet) */
+    @get:Bindable
+    var HSMRatchetChecked: Boolean = false
+        set(value) {
+            field = value
+            //notifyPropertyChanged(BR.HSMRatchetChecked)
+        }
+    /* Custom change end (HSMRatchet) */
+
+    @RequiresApi(Build.VERSION_CODES.Q)
     private constructor(parcel: Parcel) {
-        allowedIps = parcel.readString() ?: ""
+        allowedIps = parcel.readString() ?: "@RequiresApi(Build.VERSION_CODES.Q)"
         endpoint = parcel.readString() ?: ""
         persistentKeepalive = parcel.readString() ?: ""
         preSharedKey = parcel.readString() ?: ""
         publicKey = parcel.readString() ?: ""
+        /* Custom change begin (HSMRatchet) */
+        HSMRatchetChecked = parcel.readBoolean()
+        /* Custom change end (HSMRatchet) */
     }
 
     constructor(other: Peer) {
@@ -85,6 +101,9 @@ class PeerProxy : BaseObservable, Parcelable {
         persistentKeepalive = other.persistentKeepalive.map { it.toString() }.orElse("")
         preSharedKey = other.preSharedKey.map { it.toBase64() }.orElse("")
         publicKey = other.publicKey.toBase64()
+        /* Custom change begin (HSMRatchet) */
+        HSMRatchetChecked = other.hsmRatchetChecked.get()
+        /* Custom change end (HSMRatchet) */
     }
 
     constructor()
@@ -167,6 +186,9 @@ class PeerProxy : BaseObservable, Parcelable {
         if (persistentKeepalive.isNotEmpty()) builder.parsePersistentKeepalive(persistentKeepalive)
         if (preSharedKey.isNotEmpty()) builder.parsePreSharedKey(preSharedKey)
         if (publicKey.isNotEmpty()) builder.parsePublicKey(publicKey)
+        /* Custom change begin (HSMRatchet) */
+        if(HSMRatchetChecked != null) builder.parseHSMRatchetChecked(HSMRatchetChecked.toString())
+        /* Custom change end (HSMRatchet) */
         return builder.build()
     }
 
@@ -202,12 +224,16 @@ class PeerProxy : BaseObservable, Parcelable {
         owner = null
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     override fun writeToParcel(dest: Parcel, flags: Int) {
         dest.writeString(allowedIps)
         dest.writeString(endpoint)
         dest.writeString(persistentKeepalive)
         dest.writeString(preSharedKey)
         dest.writeString(publicKey)
+        /* Custom change begin (HSMRatchet) */
+        dest.writeBoolean(HSMRatchetChecked)
+        /* Custom change end (HSMRatchet) */
     }
 
     private enum class AllowedIpsState {
@@ -262,6 +288,7 @@ class PeerProxy : BaseObservable, Parcelable {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private class PeerProxyCreator : Parcelable.Creator<PeerProxy> {
         override fun createFromParcel(parcel: Parcel): PeerProxy {
             return PeerProxy(parcel)
@@ -273,6 +300,7 @@ class PeerProxy : BaseObservable, Parcelable {
     }
 
     companion object {
+        @RequiresApi(Build.VERSION_CODES.Q)
         @JvmField
         val CREATOR: Parcelable.Creator<PeerProxy> = PeerProxyCreator()
         private val IPV4_PUBLIC_NETWORKS = setOf(

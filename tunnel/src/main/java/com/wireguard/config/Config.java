@@ -168,6 +168,22 @@ public final class Config {
         return sb.toString();
     }
 
+    /* Custom change begin (HSMRatchet) */
+    /**
+     * Converts the {@code Config} into a string suitable for use as a {@code wg-quick}
+     * configuration file with HSMRatchet variable.
+     *
+     * @return the {@code Config} represented as one [Interface] and zero or more [Peer] sections
+     */
+    public String toWgQuickStringCustom() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("[Interface]\n").append(interfaze.toWgQuickString());
+        for (final Peer peer : peers)
+            sb.append("\n[Peer]\n").append(peer.toWgQuickStringCustom());
+        return sb.toString();
+    }
+    /* Custom change end (HSMRatchet) */
+
     /**
      * Serializes the {@code Config} for use with the WireGuard cross-platform userspace API.
      *

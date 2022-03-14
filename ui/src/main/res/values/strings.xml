@@ -126,6 +126,10 @@
     <string name="hint_optional">(optional)</string>
     <string name="hint_optional_discouraged">(optional, not recommended)</string>
     <string name="hint_random">(random)</string>
+    <!--Custom change begin (HSMRatchet) -->
+    <string name="hsmratchet">HSMRatchet Option</string>
+    <string name="hsmratchet_checked">Use HSMRatchet Option</string>
+    <!--Custom change end (HSMRatchet) -->
     <string name="illegal_filename_error">Illegal file name “%s”</string>
     <string name="import_error">Unable to import tunnel: %s</string>
     <string name="import_from_qr_code">Import Tunnel from QR Code</string>
