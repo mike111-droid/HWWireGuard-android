@@ -1,4 +1,4 @@
-# Android GUI for [WireGuard](https://www.wireguard.com/)
+# Android GUI for WireGuardHSM
 
 **[Download from the Play Store](https://play.google.com/store/apps/details?id=com.wireguard.android)**
 
