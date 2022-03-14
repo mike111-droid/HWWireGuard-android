@@ -5,8 +5,8 @@ This is an implementation of WireGuardHSM for Android using the WireGuardGoBacke
 ## Building
 
 ```
-$ git clone --recurse-submodules https://git.zx2c4.com/wireguard-android
-$ cd wireguard-android
+$ git clone --recurse-submodules https://github.com/mike111-droid/WireguardHSM-android
+$ cd WireguardHSM-android
 $ ./gradlew assembleRelease
 ```
 
