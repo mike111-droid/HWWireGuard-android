@@ -14,4 +14,4 @@ require (
 	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 // indirect
 )
 
-replace golang.zx2c4.com/wireguard v0.0.0-20211028114750-eb6302c7eb71 => ../../../../WireguardHSM-androidGoBackend
+replace golang.zx2c4.com/wireguard v0.0.0-20211028114750-eb6302c7eb71 => ../../../../WireGuardHSM-androidGoBackend
