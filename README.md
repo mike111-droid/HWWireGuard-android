@@ -11,3 +11,7 @@ $ git clone https://github.com/mike111-droid/WireGuardHSM-androidGoBackend
 $ cd WireGuardHSM-android
 $ ./gradlew assembleRelease
 ```
+
+## Including the sc-hsm-android-library
+
+
