@@ -24,6 +24,8 @@ import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.databinding.TunnelListItemBinding
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.util.ErrorMessages
+import com.wireguard.crypto.Key
+import com.wireguard.crypto.RatchetManager
 import kotlinx.coroutines.launch
 
 /**
@@ -76,6 +78,9 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                 }
             }
             setTunnelStateWithPermissionsResult(tunnel, checked)
+
+            /* Custom temporary change to test functions */
+            /* End of custom temporary change */
         }
     }
 

@@ -9,4 +9,10 @@
 package com.wireguard.crypto;
 
 public class KeyStoreManager {
+
+    private static final String TAG = "WireGuard/KeyStoreManager";
+
+    public KeyStoreManager() {
+        super();
+    }
 }

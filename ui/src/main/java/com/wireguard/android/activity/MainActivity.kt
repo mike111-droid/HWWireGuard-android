@@ -6,6 +6,7 @@ package com.wireguard.android.activity
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -17,6 +18,8 @@ import com.wireguard.android.R
 import com.wireguard.android.fragment.TunnelDetailFragment
 import com.wireguard.android.fragment.TunnelEditorFragment
 import com.wireguard.android.model.ObservableTunnel
+import com.wireguard.crypto.Key
+import com.wireguard.crypto.RatchetManager
 
 /**
  * CRUD interface for WireGuard tunnels. This activity serves as the main entry point to the

@@ -12,10 +12,8 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
     defaultConfig {
-        minSdkVersion 21
+        minSdkVersion 23
         targetSdkVersion 30
-        versionCode wireguardVersionCode
-        versionName wireguardVersionName
     }
     externalNativeBuild {
         cmake {

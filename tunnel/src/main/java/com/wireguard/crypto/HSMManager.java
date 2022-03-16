@@ -9,4 +9,20 @@
 package com.wireguard.crypto;
 
 public class HSMManager {
+
+    private static final String TAG = "WireGuard/HSMManager";
+
+    public HSMManager() {
+        super();
+    }
+
+    /**
+     * Function to return key with init as initial value
+     *
+     * @param init: String with init value
+     * @return    : Key that can be used as new PSK
+     */
+    public Key hsmOperation(String init) {
+        return null;
+    }
 }
