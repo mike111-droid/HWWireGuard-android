@@ -52,6 +52,7 @@ android {
 dependencies {
     implementation "androidx.annotation:annotation:$annotationsVersion"
     implementation "androidx.collection:collection:$collectionVersion"
+    implementation project(path: ':sc-hsm-android-library')
     compileOnly "com.google.code.findbugs:jsr305:$jsr305Version"
     testImplementation "junit:junit:$junitVersion"
 }

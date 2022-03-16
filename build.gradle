@@ -1,4 +1,12 @@
 buildscript {
+
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.1.0'
+    }
+
     ext {
         activityVersion = '1.4.0'
         annotationsVersion = '1.3.0'
@@ -64,6 +72,21 @@ tasks {
     wrapper {
         gradleVersion = "7.3.3"
         distributionSha256Sum = "b586e04868a22fd817c8971330fec37e298f3242eb85c374181b12d637f80302"
+    }
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+        google()
+        ivy {
+//            url "http://jenkins.mi.cardcontact.de/jenkins/shared"
+            url "https://www.openscdp.org/ivy"
+            patternLayout {
+                artifact '[organisation]/[module]/[revision]/[type]s/[artifact].[ext]'
+                ivy '[organisation]/[module]/[revision]/[type]s/[artifact].[ext]'
+            }
+        }
     }
 }
 

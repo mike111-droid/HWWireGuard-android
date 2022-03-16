@@ -15,14 +15,18 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    //repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
     }
 }
 
+include ':app', ':sc-hsm-android-library'
+project(':sc-hsm-android-library').projectDir = new File(settingsDir, "../sc-hsm-android-library/sc-hsm-android-library")
+
 rootProject.name = "wireguard-android"
 
 include ':tunnel'
 include ':ui'
+
