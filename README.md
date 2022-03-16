@@ -1,7 +1,7 @@
 # Android GUI for [WireGuardHSM](https://github.com/mike111-droid/WireguardHSM-linux)
 
 This is an implementation of WireGuardHSM for Android using the WireGuardGoBackend.  
-This is the staging branch to prevent pollution in the main branch.
+This is the sc-hsm-library-include branch which serves as a backup point (from when the sc-hsm-android-library was successfully included) in case the staging branches gets broken.
 
 ## Building
 
@@ -12,6 +12,7 @@ $ cd WireGuardHSM-android
 $ ./gradlew assembleRelease
 ```
 
-## Including the sc-hsm-android-library
+
+
 
 
