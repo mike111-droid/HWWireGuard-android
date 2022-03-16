@@ -8,6 +8,9 @@
 
 package com.wireguard.crypto;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+
 public class HSMManager {
 
     private static final String TAG = "WireGuard/HSMManager";
@@ -19,11 +22,14 @@ public class HSMManager {
     /**
      * Function to return key with init as initial value
      *
-     * @param init: String with init value
-     * @return    : Key that can be used as new PSK
+     * @param context: Context of activity from where this function is called (necessary for SBMicroSDCardTerminalFactory)
+     * @param     pin: String with pin value for HSM (is checked at the start but should be correct otherwise HSM might lock)
+     * @param    init: String with init value
+     * @return       : Key that can be used as new PSK
      */
-    public Key hsmOperation(String init) {
+    public Key hsmOperation(Context context, String pin, String init) {
         // TODO: Implement this function
+
         return null;
     }
 }
