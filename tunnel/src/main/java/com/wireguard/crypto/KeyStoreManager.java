@@ -15,4 +15,10 @@ public class KeyStoreManager {
     public KeyStoreManager() {
         super();
     }
+
+    // TODO: Add description comment
+    public Key keyStoreOperation(String init) {
+        // TODO: Implement this function
+        return null;
+    }
 }

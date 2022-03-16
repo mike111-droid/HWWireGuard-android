@@ -23,6 +23,7 @@ public class HSMManager {
      * @return    : Key that can be used as new PSK
      */
     public Key hsmOperation(String init) {
+        // TODO: Implement this function
         return null;
     }
 }
