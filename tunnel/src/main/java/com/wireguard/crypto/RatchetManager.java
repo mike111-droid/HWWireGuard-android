@@ -16,12 +16,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class RatchetManager {
-
     private static final String TAG = "WireGuard/RatchetManager";
-
-    public RatchetManager() {
-        super();
-    }
+    public RatchetManager() { }
 
     /**
      * Function to return new key from hashed old key.
