@@ -46,7 +46,8 @@ class SettingsActivity : ThemeChangeAwareActivity() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, key: String?) {
             preferenceManager.preferenceDataStore = PreferencesPreferenceDataStore(lifecycleScope, Application.getPreferencesDataStore())
             addPreferencesFromResource(R.xml.preferences)
-            preferenceScreen.initialExpandedChildrenCount = 4
+            //preferenceScreen.initialExpandedChildrenCount = 4
+            preferenceScreen.initialExpandedChildrenCount = 6
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val darkTheme = preferenceManager.findPreference<Preference>("dark_theme")
                 darkTheme?.parent?.removePreference(darkTheme)
