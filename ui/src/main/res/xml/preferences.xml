@@ -12,6 +12,12 @@
             android:summaryOff="@string/keystore_off"
             android:summaryOn="@string/keystore_on"
             android:title="@string/keystore_title" />
+        <!-- Custom change begin -->
+        <Preference
+            android:key="key_option"
+            android:summary="@string/key_option_summary"
+            android:title="@string/key_option_title" />
+        <!-- Custom change end -->
     </PreferenceCategory>
     <PreferenceCategory
         android:title="STANDARD SETTINGS">

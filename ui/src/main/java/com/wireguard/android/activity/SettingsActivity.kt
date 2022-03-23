@@ -78,6 +78,12 @@ class SettingsActivity : ThemeChangeAwareActivity() {
                 startActivity(Intent(requireContext(), LogViewerActivity::class.java))
                 true
             }
+            /* Custom change begin */
+            preferenceManager.findPreference<Preference>("key_option")?.setOnPreferenceClickListener {
+                startActivity(Intent(requireContext(), LogViewerActivity::class.java))
+                true
+            }
+            /* Custom change end */
             val kernelModuleEnabler = preferenceManager.findPreference<Preference>("kernel_module_enabler")
             if (WgQuickBackend.hasKernelSupport()) {
                 lifecycleScope.launch {
