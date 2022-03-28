@@ -11,6 +11,7 @@ pluginManagement {
         id("com.android.library") version "$agpVersion"
         id("org.jetbrains.kotlin.android") version "$kotlinVersion"
         id("org.jetbrains.kotlin.kapt") version "$kotlinVersion"
+        id 'org.jetbrains.kotlin.android' version '1.6.10'
     }
 }
 

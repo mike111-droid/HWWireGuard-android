@@ -246,6 +246,7 @@
     <string name="biometric_prompt_private_key_title">Authenticate to view private key</string>
     <string name="biometric_auth_error">Authentication failure</string>
     <string name="biometric_auth_error_reason">Authentication failure: %s</string>
-    <string name="key_option_title">Choose Key Option</string>
-    <string name="key_option_summary">Choose the hardware backend and specific key</string>
+    <string name="key_option_title">Choose Key</string>
+    <string name="key_option_hsm_summary">Choose or add keys for SmartCard-HSM</string>
+    <string name="key_option_keystore_summary">Choose or add keys for AndroidKeyStore</string>
 </resources>

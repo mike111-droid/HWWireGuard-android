@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.view.MenuItem
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.CheckBoxPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.wireguard.android.Application
@@ -80,8 +81,12 @@ class SettingsActivity : ThemeChangeAwareActivity() {
                 true
             }
             /* Custom change begin */
-            preferenceManager.findPreference<Preference>("key_option")?.setOnPreferenceClickListener {
+            preferenceManager.findPreference<Preference>("key_option_keystore")?.setOnPreferenceClickListener {
                 startActivity(Intent(requireContext(), LogViewerActivity::class.java))
+                true
+            }
+            preferenceManager.findPreference<Preference>("key_option_hsm")?.setOnPreferenceClickListener {
+                startActivity(Intent(requireContext(), HSMActivity::class.java))
                 true
             }
             /* Custom change end */

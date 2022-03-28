@@ -39,9 +39,25 @@ class LogCatOutputStream extends OutputStream {
     }
 }
 
+enum KeyTypeHSM {
+    AES,
+    RSA
+}
+
+class HSMKey {
+    private String label;
+    private String slot;
+    private KeyTypeHSM type;
+    private boolean selected;
+
+    HSMKey() { }
+}
+
 public class HSMManager {
     private static final String TAG = "WireGuard/HSMManager";
     public HSMManager() { }
+
+
 
     /**
      * Function to return key with init as initial value (Using RSA)
