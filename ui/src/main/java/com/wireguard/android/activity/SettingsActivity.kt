@@ -11,6 +11,7 @@ import android.view.MenuItem
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
+import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import com.wireguard.android.Application
 import com.wireguard.android.R
@@ -25,6 +26,8 @@ import kotlinx.coroutines.withContext
  * Interface for changing application-global persistent settings.
  */
 class SettingsActivity : ThemeChangeAwareActivity() {
+    private val TAG = "WireGuard/SettingsActivity"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (supportFragmentManager.findFragmentById(android.R.id.content) == null) {
@@ -81,7 +84,7 @@ class SettingsActivity : ThemeChangeAwareActivity() {
             }
             /* Custom change begin */
             preferenceManager.findPreference<Preference>("key_option")?.setOnPreferenceClickListener {
-                startActivity(Intent(requireContext(), LogViewerActivity::class.java))
+                startActivity(Intent(requireContext(), KeyOptionActivity::class.java))
                 true
             }
             /* Custom change end */
@@ -100,5 +103,45 @@ class SettingsActivity : ThemeChangeAwareActivity() {
                 kernelModuleEnabler?.parent?.removePreference(kernelModuleEnabler)
             }
         }
+
+        /* Custom change begin */
+        /*override fun onResume() {
+            super.onResume()
+            //unregister the preferenceChange listener
+            preferenceScreen.sharedPreferences?.registerOnSharedPreferenceChangeListener(this)
+        }
+
+        override fun onSharedPreferenceChanged(
+            sharedPreferences: SharedPreferences?,
+            key: String?
+        ) {
+            Log.i("onSharedPreferenceChanged", "Preferences changed.")
+            val category = findPreference("key_option") as PreferenceCategory?
+            val keystorePref = findPreference<Preference>("key_option_keystore")
+            val hsmPref = findPreference<Preference>("key_option_hsm")
+            val prefs = PreferencesPreferenceDataStore(lifecycleScope, Application.getPreferencesDataStore())
+            if(prefs.getBoolean("use_hsm", false)) {
+                preferenceManager.findPreference<Preference>("key_option_hsm")?.setOnPreferenceClickListener {
+                    startActivity(Intent(requireContext(), HSMActivity::class.java))
+                    true
+                }
+                category?.removePreference(hsmPref!!)
+                category?.addPreference(keystorePref!!)
+            } else {
+                preferenceManager.findPreference<Preference>("key_option_keystore")?.setOnPreferenceClickListener {
+                    startActivity(Intent(requireContext(), LogViewerActivity::class.java))
+                    true
+                }
+                category?.removePreference(keystorePref!!)
+                category?.addPreference(hsmPref!!)
+            }
+        }
+        override fun onPause() {
+            super.onPause()
+            //unregister the preference change listener
+            preferenceScreen.sharedPreferences?.unregisterOnSharedPreferenceChangeListener(this)
+        }*/
+        /* Custom change end */
     }
 }
+

@@ -8,13 +8,21 @@
 
 package com.wireguard.crypto;
 
+import android.app.Application;
 import android.content.Context;
 import android.util.Log;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
 
 import de.cardcontact.opencard.android.swissbit.SBMicroSDCardTerminalFactory;
 import de.cardcontact.opencard.factory.SmartCardHSMCardServiceFactory;
@@ -41,18 +49,101 @@ class LogCatOutputStream extends OutputStream {
 
 public class HSMManager {
     private static final String TAG = "WireGuard/HSMManager";
-    public HSMManager() { }
+    public List<HSMKey> keyList;
+    private Context context;
+    public HSMManager(Context context){
+        this.context = context;
+        keyList = new ArrayList<HSMKey>();
+    }
+
+    /**
+     * Function to parse key in String format.
+     *
+     * @param hsmKey: String with key.
+     * @return      : HSMKey.
+     */
+    public HSMKey parseKey(String hsmKey) {
+        String[] split = hsmKey.split(",");
+        String label = split[0].split("=")[1];
+        byte slot = Byte.valueOf(split[1].split("=")[1]);
+        HSMKey.KeyType type = HSMKey.KeyType.valueOf(split[2].split("=")[1]);
+        boolean selected = Boolean.valueOf(split[3].split("=")[1]);
+        return new HSMKey(label, slot, type, selected);
+    }
+
+    /**
+     * Function to load the HSM keys saved into keyList.
+     *
+     */
+    public void loadKeys() throws IOException {
+        StringBuilder stringBuilder = new StringBuilder();
+        String line;
+        BufferedReader in = new BufferedReader(new FileReader(new File(context.getFilesDir(), "HSMKeys.txt")));
+        while((line = in.readLine()) != null) {
+            stringBuilder.append(line);
+        }
+        String[] split = stringBuilder.toString().split("\n");
+        for(String key: split) {
+            keyList.add(parseKey(key));
+        }
+        in.close();
+    }
+
+    /**
+     * Function to store the HSM keys into a file that later is used to load them again.
+     *
+     */
+    public void storeKeys() throws IOException {
+        String writeStr = new String();
+        for(HSMKey key: keyList) {
+            writeStr += key.toString();
+        }
+        File path = context.getFilesDir();
+        File file = new File(path, "HSMKeys.txt");
+        FileOutputStream stream = new FileOutputStream(file);
+        try {
+            stream.write(writeStr.getBytes());
+        } finally {
+            stream.close();
+        }
+    }
+
+    /**
+     * Function to add key to keyList.
+     *
+     * @param key: Key to be added.
+     */
+    public void addKey(HSMKey key) {
+        /* Check that only one key is selected */
+        keyList.add(key);
+    }
+
+    /**
+     * Function to delete key from keyList.
+     *
+     * @param key: Key to be deleted.
+     */
+    public void deleteKey(HSMKey key) {
+        keyList.remove(key);
+    }
+
+    /**
+     * Function to return the keyList.
+     * @return: keyList.
+     */
+    public List<HSMKey> getKeyList() {
+        return keyList;
+    }
 
     /**
      * Function to return key with init as initial value (Using RSA)
      *
-     * @param context: Context of activity from where this function is called (necessary for SBMicroSDCardTerminalFactory)
      * @param     pin: String with pin value for HSM (is checked at the start but should be correct otherwise HSM might lock)
      * @param    init: String with init value
      * @param   keyID: Byte with the slot number of which key should be used (Needs to be set by user)
      * @return       : Key that can be used as new PSK
      */
-    public Key hsmOperationRSA(Context context, String pin, String init, byte keyID) {
+    public Key hsmOperationRSA(String pin, String init, byte keyID) {
         Key newPSK = null;
         try {
             /* Startup */

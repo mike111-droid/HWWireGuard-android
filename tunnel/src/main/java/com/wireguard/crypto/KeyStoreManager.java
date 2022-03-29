@@ -27,7 +27,10 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.security.UnrecoverableEntryException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.util.Enumeration;
+import java.util.HashMap;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -48,12 +51,12 @@ public class KeyStoreManager {
      * @param alias: Alias of key.
      * @return     : True for success. False for failure.
      */
-    public boolean addKeyStoreKeyAES(String key, String alias) {
+    public boolean addKeyStoreKeyAES(String alias, String key) {
         /* Import AES key into KeyStore */
         byte[] importKeyBytes = Base64.decode(key, Base64.DEFAULT);
         SecretKey importKey = new SecretKeySpec(importKeyBytes, 0, importKeyBytes.length, "AES");
         Log.i(TAG, "Key: " + Base64.encodeToString(importKey.getEncoded(), Base64.DEFAULT));
-        KeyStore keyStore = null;
+        KeyStore keyStore;
         try {
             keyStore = KeyStore.getInstance("AndroidKeyStore");
             keyStore.load(null);
@@ -78,11 +81,30 @@ public class KeyStoreManager {
      * @param privKey: String of private key (RSA).
      * @param  pubKey: String of public key (RSA).
      * @param   alias: Alias of key.
-     * @return       : Ture for success. False for Failure.
+     * @return       : Ture for success. False for failure.
      */
-    public boolean addKeyStoreKeyRSA(String privKey, String pubKey, String alias) {
+    public boolean addKeyStoreKeyRSA(String alias, String privKey, String pubKey) {
         // TODO: Implement (PROBLEM: CertificateChain necessary -> needs to be generated)
         return false;
+    }
+
+    /**
+     * Function to remove key from AndroidKeyStore.
+     *
+     * @param alias: Alias of key.
+     * @return     : True for success. False for failure.
+     */
+    public boolean deleteKey(String alias) {
+        KeyStore keyStore;
+        try {
+            keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+            keyStore.deleteEntry(alias);
+            return true;
+        } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException e) {
+            Log.e(TAG, Log.getStackTraceString(e));
+            return false;
+        }
     }
 
     /**
@@ -94,7 +116,7 @@ public class KeyStoreManager {
      * @return     : Key that can be used as new PSK.
      */
     public Key keyStoreOperationAESCBC(String alias, String iv, String init) {
-        KeyStore keystore = null;
+        KeyStore keystore;
         try {
             /* Get correct key from AndroidKeyStore */
             keystore = KeyStore.getInstance("AndroidKeyStore");
@@ -130,7 +152,7 @@ public class KeyStoreManager {
      * @return     : Key that can be used as new PSK.
      */
     public Key keyStoreOperationAESECB(String alias, String init) {
-        KeyStore keystore = null;
+        KeyStore keystore;
         try {
             /* Get correct key from AndroidKeyStore */
             keystore = KeyStore.getInstance("AndroidKeyStore");
@@ -181,5 +203,42 @@ public class KeyStoreManager {
             Log.e(TAG, Log.getStackTraceString(e));
             return null;
         }
+    }
+
+    /**
+     * Function to return all keys in AndroidKeyStore that can be used.
+     *
+     * @return: HashMap of all keys with their entry.
+     */
+    public HashMap<String, String> getAndroidKeyStoreKeys() {
+        HashMap<String, String> keys = new HashMap();
+        KeyStore keystore = null;
+        try {
+            /* Get alias of all keys */
+            keystore = KeyStore.getInstance("AndroidKeyStore");
+            keystore.load(null);
+            Enumeration<String> enumeration = keystore.aliases();
+            while(enumeration.hasMoreElements()) {
+                String alias = enumeration.nextElement();
+                Log.i(TAG, "alias name: " + alias);
+                KeyStore.Entry entry = keystore.getEntry(alias, null);
+                Log.i(TAG, entry.toString());
+                /* Process keys into customKeyStore */
+                keys.put(alias, entry.toString());
+            }
+            return keys;
+        } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | UnrecoverableEntryException e) {
+            Log.e(TAG, Log.getStackTraceString(e));
+            return null;
+        }
+    }
+
+    /**
+     * Function to return which key is selected.
+     * @return: String with alias of key that is selected.
+     */
+    public String getSelectedKey(){
+        // TODO: Implement
+        return null;
     }
 }

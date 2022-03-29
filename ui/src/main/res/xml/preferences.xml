@@ -1,24 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-    android:key="settings">
+    android:key="settings"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <com.wireguard.android.preference.VersionPreference
         android:icon="@mipmap/ic_launcher"
         android:key="version" />
+    <!-- Custom change begin -->
     <PreferenceCategory
         android:title="KEYSTORAGE SOLUTIONS">
         <CheckBoxPreference
+            android:id="@+id/use_hsm"
             android:defaultValue="false"
-            android:key="use_keystores"
+            android:key="use_hsm"
             android:summaryOff="@string/keystore_off"
             android:summaryOn="@string/keystore_on"
             android:title="@string/keystore_title" />
-        <!-- Custom change begin -->
         <Preference
             android:key="key_option"
             android:summary="@string/key_option_summary"
             android:title="@string/key_option_title" />
-        <!-- Custom change end -->
     </PreferenceCategory>
+    <!-- Custom change end -->
     <PreferenceCategory
         android:title="STANDARD SETTINGS">
         <CheckBoxPreference
