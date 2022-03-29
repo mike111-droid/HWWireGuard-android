@@ -9,19 +9,15 @@
     <PreferenceCategory
         android:title="KEYSTORAGE SOLUTIONS">
         <CheckBoxPreference
-            android:id="@+id/use_keystores"
+            android:id="@+id/use_hsm"
             android:defaultValue="false"
-            android:key="use_keystores"
+            android:key="use_hsm"
             android:summaryOff="@string/keystore_off"
             android:summaryOn="@string/keystore_on"
             android:title="@string/keystore_title" />
         <Preference
-            android:key="key_option_hsm"
-            android:summary="@string/key_option_hsm_summary"
-            android:title="@string/key_option_title" />
-        <Preference
-            android:key="key_option_keystore"
-            android:summary="@string/key_option_keystore_summary"
+            android:key="key_option"
+            android:summary="@string/key_option_summary"
             android:title="@string/key_option_title" />
     </PreferenceCategory>
     <!-- Custom change end -->

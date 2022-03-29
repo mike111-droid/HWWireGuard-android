@@ -24,11 +24,10 @@ import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.databinding.TunnelListItemBinding
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.util.ErrorMessages
-import com.wireguard.crypto.Key
-import com.wireguard.crypto.KeyStoreManager
-import com.wireguard.crypto.RatchetManager
+import com.wireguard.crypto.HSMKey
+import com.wireguard.crypto.HSMManager
 import kotlinx.coroutines.launch
-import java.security.KeyStore
+
 
 /**
  * Base class for fragments that need to know the currently-selected tunnel. Only does anything when
@@ -82,13 +81,13 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             setTunnelStateWithPermissionsResult(tunnel, checked)
 
             /* Custom temporary change to test functions */
-            val keyStoreManager = KeyStoreManager()
-            //keyStoreManager.addKeyStoreKeyAES("AES#KEY", "TeTu5J+Hz0FAk2D0G+j93FCpUwip2Hm7+3Iyh6nk3T4=");
-            val keys = keyStoreManager.androidKeyStoreKeys
-            for ((key, value) in keys) {
-                Log.i("TEST", "$key = $value")
-                keyStoreManager.deleteKey(key)
-            }
+            val HSMManger = HSMManager(context);
+            //val key = HSMKey("KEY1", 0x1, HSMKey.KeyType.AES, true)
+            //HSMManger.addKey(key)
+            HSMManger.loadKeys()
+            val keyList = HSMManger.getKeyList()
+            val key = keyList[0]
+            Log.i(TAG, "key: $key")
             /* End of custom temporary change */
         }
     }
