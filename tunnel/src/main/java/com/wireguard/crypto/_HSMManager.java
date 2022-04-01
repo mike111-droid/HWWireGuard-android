@@ -8,9 +8,10 @@
 
 package com.wireguard.crypto;
 
-import android.app.Application;
 import android.content.Context;
 import android.util.Log;
+
+import com.wireguard.crypto._HardwareBackedKey.HardwareType;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -34,9 +35,12 @@ import opencard.core.service.CardServiceFactory;
 import opencard.core.service.CardServiceRegistry;
 import opencard.core.service.SmartCard;
 import opencard.core.terminal.CardTerminalRegistry;
-import opencard.core.util.HexString;
 
-class LogCatOutputStream extends OutputStream {
+
+/**
+ * Necessary Class for SmartCard-HSM interaction.
+ */
+class LogCatOutputStream_ extends OutputStream {
     @Override
     public synchronized void write(byte[] buffer, int offset, int len) {
         Log.i("SmartCard-HSM", new String(buffer, offset, len));
@@ -47,13 +51,47 @@ class LogCatOutputStream extends OutputStream {
     }
 }
 
-public class HSMManager {
+/**
+ * TODO: Not all characters are allowed for key labels/alias -> make sure to filter them at UI
+ * This class offers:
+ *      1. Crypto-Operations with SmartCard-HSM (AES___ enc and RSA sign)
+ *      2. keyList to save HardwareBackedKeys (label/alias, type, slot)
+ *      3. selectedKeyLabel to identify one SmartCard-HSM key to use in operations (provides Getter and Setter Method)
+ *      4. Operations to store/load keyList and selectedKeyLabel into file HSMKeys.txt
+ */
+public class _HSMManager {
     private static final String TAG = "WireGuard/HSMManager";
-    public List<HSMKey> keyList;
+    private String selectedKeyLabel = "NOTSELECTED";
+    public List<_HardwareBackedKey> keyList;
     private Context context;
-    public HSMManager(Context context){
+    public _HSMManager(Context context) throws IOException {
         this.context = context;
-        keyList = new ArrayList<HSMKey>();
+        keyList = new ArrayList<>();
+        loadKeys();
+    }
+
+    /**
+     * Function to set which key is selected for operation.
+     * // TODO: Prevent delimiter char '=' from being in Alias (and NOTSELECTED)
+     *
+     * @param label: Label/Alias of key.
+     */
+    public void setSelectedKeyLabel(String label) {
+        selectedKeyLabel = label;
+        try{
+            storeKeys();
+        } catch (IOException e) {
+            Log.e(TAG, Log.getStackTraceString(e));
+        }
+    }
+
+    /**
+     * Function to return which key is selected.
+     *
+     * @return: String with alias of key that is selected.
+     */
+    public String getSelectedKey(){
+        return selectedKeyLabel;
     }
 
     /**
@@ -62,13 +100,12 @@ public class HSMManager {
      * @param hsmKey: String with key.
      * @return      : HSMKey.
      */
-    public HSMKey parseKey(String hsmKey) {
+    public _HardwareBackedKey parseKey(String hsmKey) {
         String[] split = hsmKey.split(",");
         String label = split[0].split("=")[1];
         byte slot = Byte.valueOf(split[1].split("=")[1]);
-        HSMKey.KeyType type = HSMKey.KeyType.valueOf(split[2].split("=")[1]);
-        boolean selected = Boolean.valueOf(split[3].split("=")[1]);
-        return new HSMKey(label, slot, type, selected);
+        _HardwareBackedKey.KeyType type = _HardwareBackedKey.KeyType.valueOf(split[2].split("=")[1]);
+        return new _HardwareBackedKey(HardwareType.HSM, label, slot, type);
     }
 
     /**
@@ -78,13 +115,34 @@ public class HSMManager {
     public void loadKeys() throws IOException {
         StringBuilder stringBuilder = new StringBuilder();
         String line;
-        BufferedReader in = new BufferedReader(new FileReader(new File(context.getFilesDir(), "HSMKeys.txt")));
+        BufferedReader in;
+        try {
+            in = new BufferedReader(new FileReader(new File(context.getFilesDir(), "HSMKeys.txt")));
+        }catch(FileNotFoundException e){
+            Log.i(TAG, "File HSMKey.txt not found.");
+            Log.e(TAG, Log.getStackTraceString(e));
+            return;
+        }
+        int lineCounter = 0;
         while((line = in.readLine()) != null) {
+            lineCounter++;
+            /* Last line contains selectedKeyLabel */
+            if(line.indexOf("selectedKeyLabel=") != -1) {
+                break;
+            }
             stringBuilder.append(line);
         }
-        String[] split = stringBuilder.toString().split("\n");
-        for(String key: split) {
-            keyList.add(parseKey(key));
+        /* Check is list is empty */
+        if(lineCounter > 1) {
+            selectedKeyLabel = line.split("=")[1];
+            String[] split = stringBuilder.toString().split("\n");
+            for(String key: split) {
+                keyList.add(parseKey(key));
+            }
+        }else{
+            /* List is empty. Make sure selectedKey is NOTSELECTED. */
+            setSelectedKeyLabel("NOTSELECTED");
+            storeKeys();
         }
         in.close();
     }
@@ -95,9 +153,10 @@ public class HSMManager {
      */
     public void storeKeys() throws IOException {
         String writeStr = new String();
-        for(HSMKey key: keyList) {
+        for(_HardwareBackedKey key: keyList) {
             writeStr += key.toString();
         }
+        writeStr += "selectedKeyLabel=" + selectedKeyLabel;
         File path = context.getFilesDir();
         File file = new File(path, "HSMKeys.txt");
         FileOutputStream stream = new FileOutputStream(file);
@@ -110,28 +169,69 @@ public class HSMManager {
 
     /**
      * Function to add key to keyList.
+     * // TODO: Prevent delimiter char '=' from being in Alias (and NOTSELECTED)
      *
      * @param key: Key to be added.
      */
-    public void addKey(HSMKey key) {
-        /* Check that only one key is selected */
+    public void addKey(_HardwareBackedKey key) {
+        /* add key keyList but check if key label already exists
+         * -> if yes update key (remove old one and add new one) */
+        List<_HardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
+        for(_HardwareBackedKey k : keyListCopy) {
+            if(k.getLabel().equals(key.getLabel())){
+                keyList.remove(k);
+            }
+        }
         keyList.add(key);
+        try {
+            storeKeys();
+        } catch (IOException e) {
+            Log.i(TAG, "Failed to store into KeyStoreKeys.txt file.");
+            Log.e(TAG, Log.getStackTraceString(e));
+        }
     }
 
     /**
      * Function to delete key from keyList.
      *
-     * @param key: Key to be deleted.
+     * @param label: Key to be deleted.
      */
-    public void deleteKey(HSMKey key) {
-        keyList.remove(key);
+    public void deleteKey(String label) {
+        _HardwareBackedKey key = getKeyFromAlias(label);
+        if(key != null) {
+            keyList.remove(key);
+        }else{
+            Log.i(TAG, "Key alias not found in keyList.");
+            return;
+        }
+        try {
+            storeKeys();
+        } catch (IOException e) {
+            Log.i(TAG, "Failed to store updated keyList into HSMKeys.txt file.");
+            Log.e(TAG, Log.getStackTraceString(e));
+        }
+    }
+
+    /**
+     * Function to get key from alias/label.
+     *
+     * @param alias: Alias of key we are looking for.
+     * @return     : First _HardwareBackedKey with same label/alias.
+     */
+    public _HardwareBackedKey getKeyFromAlias(String alias) {
+        for(_HardwareBackedKey key: keyList) {
+            if(key.getLabel().equals(alias)) {
+                return key;
+            }
+        }
+        return null;
     }
 
     /**
      * Function to return the keyList.
      * @return: keyList.
      */
-    public List<HSMKey> getKeyList() {
+    public List<_HardwareBackedKey> getKeyList() {
         return keyList;
     }
 
@@ -173,7 +273,7 @@ public class HSMManager {
                 return null;
             }
 
-            sc.setAPDUTracer(new StreamingAPDUTracer(new PrintStream(new LogCatOutputStream())));
+            sc.setAPDUTracer(new StreamingAPDUTracer(new PrintStream(new LogCatOutputStream_())));
             Log.i(TAG, "Card found");
 
             Log.i(TAG, "Trying to create card service...");

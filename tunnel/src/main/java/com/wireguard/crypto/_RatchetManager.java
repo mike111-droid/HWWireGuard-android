@@ -15,9 +15,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-public class RatchetManager {
+/**
+ * Class to perform RatchetOperation. newPSK = SHA256(oldPSK)
+ */
+public class _RatchetManager {
     private static final String TAG = "WireGuard/RatchetManager";
-    public RatchetManager() { }
+    public _RatchetManager() { }
 
     /**
      * Function to return new key from hashed old key.

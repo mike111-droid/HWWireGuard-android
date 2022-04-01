@@ -5,17 +5,26 @@
 
 package com.wireguard.crypto;
 
-import androidx.annotation.NonNull;
-
-
-
-public class HSMKey {
+/**
+ * The class offers:
+ *      1. Attributes for both SmartCard-HSM and AndroidKeyStore keys (label, slot(only relevant to SmartCard-HSM), type)
+ *      2. Enums HardwareType (KEYSTORE, HSM) and KeyType (AESCBC, AESECB, RSA for AndroidKeyStore AND AES, RSA for SmartCard-HSM)
+ *      3. Getter methods, Constructor acts as Setter, toString() for saving.
+ */
+public class _HardwareBackedKey {
+    private HardwareType hardwareType;
     private String label;
     private byte slot;
     private KeyType type;
-    private boolean selected;
+
+    public enum HardwareType {
+        KEYSTORE,
+        HSM
+    }
 
     public enum KeyType {
+        AESECB,
+        AESCBC,
         AES,
         RSA
     }
@@ -26,14 +35,15 @@ public class HSMKey {
      * @param label
      * @param slot
      * @param type
-     * @param selected
      */
-    public HSMKey(String label, byte slot, KeyType type, boolean selected) {
+    public _HardwareBackedKey(HardwareType hardwareType, String label, byte slot, KeyType type) {
+        this.hardwareType = hardwareType;
         this.label = label;
         this.slot = slot;
         this.type = type;
-        this.selected = selected;
     }
+
+    public HardwareType getHardwareType() { return hardwareType; }
 
     public String getLabel() {
         return label;
@@ -47,14 +57,9 @@ public class HSMKey {
         return type;
     }
 
-    public boolean getSelected() {
-        return selected;
-    }
-
     @Override public String toString() {
         return "label=" + label + ',' +
                 "slot=" + slot + ',' +
-                "type=" + type + ',' +
-                "selected=" + selected + '\n';
+                "type=" + type + ',' + '\n';
     }
 }

@@ -84,7 +84,7 @@ class SettingsActivity : ThemeChangeAwareActivity() {
             }
             /* Custom change begin */
             preferenceManager.findPreference<Preference>("key_option")?.setOnPreferenceClickListener {
-                startActivity(Intent(requireContext(), KeyOptionActivity::class.java))
+                startActivity(Intent(requireContext(), LogViewerActivity::class.java))
                 true
             }
             /* Custom change end */

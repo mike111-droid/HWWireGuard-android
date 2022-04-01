@@ -24,8 +24,9 @@ import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.databinding.TunnelListItemBinding
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.util.ErrorMessages
-import com.wireguard.crypto.HSMKey
-import com.wireguard.crypto.HSMManager
+import com.wireguard.crypto._HSMManager
+import com.wireguard.crypto._HardwareBackedKey
+import com.wireguard.crypto._KeyStoreManager
 import kotlinx.coroutines.launch
 
 
@@ -81,13 +82,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             setTunnelStateWithPermissionsResult(tunnel, checked)
 
             /* Custom temporary change to test functions */
-            val HSMManger = HSMManager(context);
-            //val key = HSMKey("KEY1", 0x1, HSMKey.KeyType.AES, true)
-            //HSMManger.addKey(key)
-            HSMManger.loadKeys()
-            val keyList = HSMManger.getKeyList()
-            val key = keyList[0]
-            Log.i(TAG, "key: $key")
+
             /* End of custom temporary change */
         }
     }
