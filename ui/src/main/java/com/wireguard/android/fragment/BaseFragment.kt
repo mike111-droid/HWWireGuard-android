@@ -24,9 +24,8 @@ import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.databinding.TunnelListItemBinding
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.util.ErrorMessages
-import com.wireguard.crypto._HSMManager
-import com.wireguard.crypto._HardwareBackedKey
-import com.wireguard.crypto._KeyStoreManager
+import com.wireguard.crypto.Key
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
@@ -80,10 +79,33 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                 }
             }
             setTunnelStateWithPermissionsResult(tunnel, checked)
-
-            /* Custom temporary change to test functions */
-
-            /* End of custom temporary change */
+            val config = tunnel.getConfigAsync()
+            delay(1000)
+            /* Custom change begin */
+            for ((counter, peer) in config.peers.withIndex()) {
+                Log.i(
+                    TAG,
+                    "psk1: " + Application.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
+                )
+                /* Change psk */
+                config.peers[counter].setPreSharedKey(Key.fromBase64("6LGnM3Hz2zi2BJiz5iyIHbgg/FCU38JzVuxxyQsQkR0="))
+                //Application.getBackend().setState(tunnel, tunnel.state, config)
+                Application.getBackend().addConf(config)
+                //delay(500)
+                Log.i(
+                    TAG,
+                    "psk2: " + Application.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
+                )
+                config.peers[counter].setPreSharedKey(Key.fromBase64("or/ZJXL3mejqaF+5TyGpYhr02ceXgE15Ysqt2Xia81o="))
+                //Application.getBackend().setState(tunnel, tunnel.state, config)
+                Application.getBackend().addConf(config)
+                //delay(500)
+                Log.i(
+                    TAG,
+                    "endPSK: " + Application.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
+                )
+            }
+            /* Custom change end */
         }
     }
 

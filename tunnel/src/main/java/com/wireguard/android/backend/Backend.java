@@ -64,4 +64,8 @@ public interface Backend {
      * @throws Exception Exception raised while changing state.
      */
     Tunnel.State setState(Tunnel tunnel, Tunnel.State state, @Nullable Config config) throws Exception;
+
+    /* Custom change begin */
+    void addConf(Config config);
+    /* Custom change end */
 }

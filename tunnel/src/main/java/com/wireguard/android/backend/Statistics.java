@@ -39,6 +39,16 @@ public class Statistics {
         lastTouched = SystemClock.elapsedRealtime();
     }
 
+    /* Custom change begin */
+    private Map<Key, Key> presharedKey = new HashMap<>();
+    void addPresharedKey(final Key key, final Key psk) {
+        presharedKey.put(key, psk);
+    }
+    public Map<Key, Key> getPresharedKey() {
+        return presharedKey;
+    }
+    /* Custom change end */
+
     /**
      * Check if the statistics are stale, indicating the need for the {@link Backend} to update them.
      *

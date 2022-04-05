@@ -83,6 +83,16 @@ public final class GoBackend implements Backend {
 
     private static native String wgVersion();
 
+    /* Custom change begin */
+    private static native int loadPSK(int handle, String settings);
+
+    @Override
+    public void addConf(Config config) {
+        int ret = loadPSK(currentTunnelHandle, config.toWgUserspaceString());
+        Log.i(TAG, "ret: " + ret);
+    }
+    /* Custom change end */
+
     /**
      * Method to get the names of running tunnels.
      *
@@ -123,6 +133,9 @@ public final class GoBackend implements Backend {
         final String config = wgGetConfig(currentTunnelHandle);
         if (config == null)
             return stats;
+        /* Custom change begin */
+        Key psk = null;
+        /* Custom change end */
         Key key = null;
         long rx = 0;
         long tx = 0;
@@ -154,6 +167,20 @@ public final class GoBackend implements Backend {
                     tx = 0;
                 }
             }
+            /* Custom change begin */
+            else if (line.startsWith("preshared_key=")) {
+                if (key == null)
+                    continue;
+                //Log.i(TAG, line.substring(24) + " last_handshake_time_sec was found");
+                try {
+                    psk = Key.fromHex(line.substring(14));
+                    stats.addPresharedKey(key, psk);
+                } catch (final KeyFormatException ignored) {
+                    psk = null;
+                    stats.addPresharedKey(key, psk);
+                }
+            }
+            /* Custom change end */
         }
         if (key != null)
             stats.add(key, rx, tx);
@@ -184,6 +211,7 @@ public final class GoBackend implements Backend {
     public State setState(final Tunnel tunnel, State state, @Nullable final Config config) throws Exception {
         final State originalState = getState(tunnel);
 
+        Log.i(TAG, "setState called.");
         if (state == State.TOGGLE)
             state = originalState == State.UP ? State.DOWN : State.UP;
         if (state == originalState && tunnel == currentTunnel && config == currentConfig)

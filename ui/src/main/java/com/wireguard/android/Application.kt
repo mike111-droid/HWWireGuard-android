@@ -20,6 +20,7 @@ import com.wireguard.android.backend.Backend
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.WgQuickBackend
 import com.wireguard.android.configStore.FileConfigStore
+import com.wireguard.android.fragment.BaseFragment
 import com.wireguard.android.model.TunnelManager
 import com.wireguard.android.util.RootShell
 import com.wireguard.android.util.ToolsInstaller

@@ -192,4 +192,11 @@ public final class WgQuickBackend implements Backend {
 
         tunnel.onStateChange(state);
     }
+
+    /* Custom change begin */
+    @Override
+    public void addConf(Config config) {
+        // TODO: Implement with addconf for device with Kernel support -> rooted device necessary
+    }
+    /* Custom change end */
 }

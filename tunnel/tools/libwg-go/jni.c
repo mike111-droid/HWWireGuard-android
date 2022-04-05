@@ -6,6 +6,10 @@
 #include <jni.h>
 #include <stdlib.h>
 #include <string.h>
+#include <jni.h>
+#include <jni.h>
+#include <jni.h>
+#include <jni.h>
 
 struct go_string { const char *str; long n; };
 extern int wgTurnOn(struct go_string ifname, int tun_fd, struct go_string settings);
@@ -14,6 +18,21 @@ extern int wgGetSocketV4(int handle);
 extern int wgGetSocketV6(int handle);
 extern char *wgGetConfig(int handle);
 extern char *wgVersion();
+
+/* Custom change begin */
+JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_loadPSK(JNIEnv * env, jclass clazz, jint handle, jstring settings) {
+    // TODO: implement loadPSK()
+    const char *settings_str = (*env)->GetStringUTFChars(env, settings, 0);
+    size_t settings_len = (*env)->GetStringUTFLength(env, settings);
+    int ret = loadPSK(handle,
+                      (struct go_string){
+                              .str = settings_str,
+                              .n = settings_len
+                    }
+    );
+    return ret;
+}
+/* Custom change end */
 
 JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_wgTurnOn(JNIEnv *env, jclass c, jstring ifname, jint tun_fd, jstring settings)
 {
@@ -48,7 +67,9 @@ JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetSocketV
 	return wgGetSocketV6(handle);
 }
 
-JNIEXPORT jstring JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetConfig(JNIEnv *env, jclass c, jint handle)
+
+
+JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetConfig(JNIEnv *env, jclass c, jint handle)
 {
 	jstring ret;
 	char *config = wgGetConfig(handle);
@@ -59,7 +80,7 @@ JNIEXPORT jstring JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetConf
 	return ret;
 }
 
-JNIEXPORT jstring JNICALL Java_com_wireguard_android_backend_GoBackend_wgVersion(JNIEnv *env, jclass c)
+JNICALL Java_com_wireguard_android_backend_GoBackend_wgVersion(JNIEnv *env, jclass c)
 {
 	jstring ret;
 	char *version = wgVersion();
@@ -69,3 +90,5 @@ JNIEXPORT jstring JNICALL Java_com_wireguard_android_backend_GoBackend_wgVersion
 	free(version);
 	return ret;
 }
+
+

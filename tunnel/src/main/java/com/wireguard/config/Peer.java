@@ -33,10 +33,11 @@ public final class Peer {
     private final Set<InetNetwork> allowedIps;
     private final Optional<InetEndpoint> endpoint;
     private final Optional<Integer> persistentKeepalive;
-    private final Optional<Key> preSharedKey;
+    private Optional<Key> preSharedKey;
     private final Key publicKey;
     /* Custom change begin (HSMRatchet) */
     private final Optional<Boolean> HSMRatchetChecked;
+    public void setPreSharedKey(Key psk) { preSharedKey = Optional.of(psk); }
     /* Custom change end (HSMRatchet) */
 
     private Peer(final Builder builder) {
@@ -332,6 +333,8 @@ public final class Peer {
         public Builder parseHSMRatchetChecked(final String HSMRatchetChecked) throws BadConfigException {
             return setHSMRatchetChecked(Boolean.parseBoolean(HSMRatchetChecked));
         }
+
+
         /* Custom change end (HSMRatchet) */
 
         public Builder setEndpoint(final InetEndpoint endpoint) {

@@ -52,6 +52,7 @@ public class RootShell {
 
     private static boolean isExecutableInPath(final String name) {
         final String path = System.getenv("PATH");
+        Log.i(TAG, "path: " + path);
         if (path == null)
             return false;
         for (final String dir : path.split(":"))
