@@ -32,6 +32,7 @@ public class _HardwareBackedKey {
     /**
      * Constructor with necessary attributes.
      *
+     * @param hardwareType
      * @param label
      * @param slot
      * @param type

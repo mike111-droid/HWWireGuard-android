@@ -144,11 +144,11 @@ public class _HSMManager {
         }
         /* Check is list is empty */
         if(lineCounter > 1) {
-            selectedKeyLabel = line.split("=")[1];
             String[] split = stringBuilder.toString().split("\n");
             for(String key: split) {
                 keyList.add(parseKey(key));
             }
+            selectedKeyLabel = line.split("=")[1];
         }else{
             /* List is empty. Make sure selectedKey is NOTSELECTED. */
             setSelectedKeyLabel("NOTSELECTED");
@@ -167,14 +167,9 @@ public class _HSMManager {
             writeStr += key.toString();
         }
         writeStr += "selectedKeyLabel=" + selectedKeyLabel;
-        File path = context.getFilesDir();
-        File file = new File(path, "HSMKeys.txt");
-        FileOutputStream stream = new FileOutputStream(file);
-        try {
-            stream.write(writeStr.getBytes());
-        } finally {
-            stream.close();
-        }
+        FileOutputStream streamHSMKeys = new FileOutputStream(new File(context.getFilesDir(), "HSMKeys.txt"));
+        streamHSMKeys.write(writeStr.getBytes());
+        streamHSMKeys.close();
     }
 
     /**
@@ -249,10 +244,10 @@ public class _HSMManager {
      * Function to perform either AES or RSA operation on the HSM.
      *
      * @param keyType: Specifies whether to use KeyType.AES or KeyType.RSA.
-     * @param pin
-     * @param init
-     * @param keyID
-     * @return
+     * @param pin    : String with pin for HSM.
+     * @param init   : Input data.
+     * @param keyID  : Slot ID of the key to use.
+     * @return       : New PSK key.
      */
     public Key hsmOperation(_HardwareBackedKey.KeyType keyType, String pin, String init, byte keyID) throws NoSuchAlgorithmException{
         Key newPSK = null;

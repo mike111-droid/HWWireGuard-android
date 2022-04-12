@@ -9,6 +9,8 @@
 package com.wireguard.crypto;
 
 import android.content.Context;
+import android.os.Build;
+import android.os.Environment;
 import android.security.keystore.KeyProperties;
 import android.security.keystore.KeyProtection;
 import android.util.Base64;
@@ -18,14 +20,18 @@ import com.wireguard.crypto._HardwareBackedKey.HardwareType;
 import com.wireguard.crypto._HardwareBackedKey.KeyType;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
@@ -35,7 +41,11 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.security.UnrecoverableEntryException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -240,7 +250,7 @@ public class _KeyStoreManager {
             Log.e(TAG, Log.getStackTraceString(e));
             return false;
         }
-        /* add key keyList but check if key label alread exists
+        /* add key keyList but check if key label already exists
         * -> if yes update key (do not add to keyList) */
         List<_HardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
         for(_HardwareBackedKey k : keyListCopy) {
@@ -262,14 +272,58 @@ public class _KeyStoreManager {
      * Function to add new RSA key to AndroidKeyStore.
      * // TODO: Prevent delimiter char '=' from being in Alias (and NOTSELECTED)
      *
-     * @param privKey: String of private key (RSA).
-     * @param  pubKey: String of public key (RSA).
+     * @param crtFile: Name of file in Downloads with pem or der certificate.
+     * @param keyFile: Name of file in Downloads in PKCS#8 form.
      * @param   alias: Alias of key.
      * @return       : Ture for success. False for failure.
      */
-    public boolean addKeyStoreKeyRSA(String alias, String privKey, String pubKey) {
-        // TODO: Implement (PROBLEM: CertificateChain necessary -> needs to be generated)
+    public boolean addKeyStoreKeyRSA(String alias, String crtFile, String keyFile) {
+        try {
+            /* Get certificate in pem format and create Certificate */
+            String pathCrt = Environment.getExternalStorageDirectory() + File.separator + "Download" + File.separator + crtFile;
+            Log.i(TAG, "Using this path for cert: " + pathCrt);
+            byte[] fileContentCrt = Files.readAllBytes(Paths.get(pathCrt));
+            Certificate cert =
+                    CertificateFactory.getInstance("X.509").generateCertificate(
+                            new ByteArrayInputStream(fileContentCrt));
 
+            /* Get private key*/
+            String pathKey = Environment.getExternalStorageDirectory() + File.separator + "Download" + File.separator + keyFile;
+            Log.i(TAG, "Using this path for private key: " + pathKey);
+            byte[] fileContentKey = Files.readAllBytes(Paths.get(pathKey));
+            PrivateKey privateKey =
+                    KeyFactory.getInstance("RSA").generatePrivate(
+                            new PKCS8EncodedKeySpec(fileContentKey));
+
+            KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
+            ks.load(null);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                ks.setEntry(
+                        alias,
+                        new KeyStore.PrivateKeyEntry(privateKey, new Certificate[] {cert}),
+                        new KeyProtection.Builder(KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT | KeyProperties.PURPOSE_SIGN | KeyProperties.PURPOSE_VERIFY)
+                                .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
+                                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
+                                .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
+                                .build());
+            }
+        } catch (IOException | CertificateException | NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException e) {
+            Log.e(TAG, Log.getStackTraceString(e));
+            Log.i(TAG, "Failed to add key to AndroidKeyStores.");
+            return false;
+        }
+
+        /* add key keyList but check if key label already exists
+         * -> if yes update key (remove and add) */
+        List<_HardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
+        for(_HardwareBackedKey k : keyListCopy) {
+            if(k.getLabel().equals(alias)){
+                keyList.remove(k);
+            }
+        }
+        keyList.add(new _HardwareBackedKey(HardwareType.KEYSTORE, alias, (byte) 0x0, KeyType.RSA));
+
+        /* Store keys of keyList in KeyStoreKeys.txt file */
         try {
             storeKeys();
         } catch (IOException e) {

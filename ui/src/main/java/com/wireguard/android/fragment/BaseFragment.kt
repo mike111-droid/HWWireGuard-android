@@ -83,10 +83,10 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             run.set(true)
             applicationScope.launch(Dispatchers.Default) {
                 while(run.get()) {
-                    delay(3000)
                     for(tunnel in Application.getTunnelManager().getTunnels()) {
                         monitor(tunnel)
                     }
+                    delay(3000)
                 }
             }
         }
