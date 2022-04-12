@@ -1,19 +1,16 @@
 /*
  * Copyright © 2017-2022 WireGuard LLC. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
- *
- * This class is supposed to manage the SmartCard-HSM by CardContact Systems GmbH.
- * It can take an initial value and return a PSK in Base64 as String.
  */
 
-package com.wireguard.crypto;
+package com.wireguard.hwbacked;
 
 import android.content.Context;
 import android.util.Log;
 
-import com.wireguard.android.backend.Backend;
-import com.wireguard.crypto._HardwareBackedKey.HardwareType;
-import com.wireguard.crypto._HardwareBackedKey.KeyType;
+import com.wireguard.hwbacked.HWHardwareBackedKey.HardwareType;
+import com.wireguard.hwbacked.HWHardwareBackedKey.KeyType;
+import com.wireguard.crypto.Key;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -21,13 +18,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 
 import de.cardcontact.opencard.android.swissbit.SBMicroSDCardTerminalFactory;
@@ -46,21 +40,6 @@ import opencard.core.terminal.CardTerminalRegistry;
 import opencard.core.terminal.CommandAPDU;
 import opencard.core.terminal.ResponseAPDU;
 
-
-/**
- * Necessary Class for SmartCard-HSM interaction.
- */
-class LogCatOutputStream_ extends OutputStream {
-    @Override
-    public synchronized void write(byte[] buffer, int offset, int len) {
-        Log.i("SmartCard-HSM", new String(buffer, offset, len));
-    }
-
-    @Override
-    public void write(int oneByte) throws IOException {
-    }
-}
-
 /**
  * TODO: Not all characters are allowed for key labels/alias -> make sure to filter them at UI
  * This class offers:
@@ -69,12 +48,12 @@ class LogCatOutputStream_ extends OutputStream {
  *      3. selectedKeyLabel to identify one SmartCard-HSM key to use in operations (provides Getter and Setter Method)
  *      4. Operations to store/load keyList and selectedKeyLabel into file HSMKeys.txt
  */
-public class _HSMManager {
+public class HWHSMManager {
     private static final String TAG = "WireGuard/HSMManager";
     private String selectedKeyLabel = "NOTSELECTED";
-    public List<_HardwareBackedKey> keyList;
+    public List<HWHardwareBackedKey> keyList;
     private Context context;
-    public _HSMManager(Context context) throws IOException {
+    public HWHSMManager(Context context) throws IOException {
         this.context = context;
         keyList = new ArrayList<>();
         loadKeys();
@@ -110,12 +89,12 @@ public class _HSMManager {
      * @param hsmKey: String with key.
      * @return      : HSMKey.
      */
-    public _HardwareBackedKey parseKey(String hsmKey) {
+    public HWHardwareBackedKey parseKey(String hsmKey) {
         String[] split = hsmKey.split(",");
         String label = split[0].split("=")[1];
         byte slot = Byte.valueOf(split[1].split("=")[1]);
-        _HardwareBackedKey.KeyType type = _HardwareBackedKey.KeyType.valueOf(split[2].split("=")[1]);
-        return new _HardwareBackedKey(HardwareType.HSM, label, slot, type);
+        HWHardwareBackedKey.KeyType type = HWHardwareBackedKey.KeyType.valueOf(split[2].split("=")[1]);
+        return new HWHardwareBackedKey(HardwareType.HSM, label, slot, type);
     }
 
     /**
@@ -163,7 +142,7 @@ public class _HSMManager {
      */
     public void storeKeys() throws IOException {
         String writeStr = new String();
-        for(_HardwareBackedKey key: keyList) {
+        for(HWHardwareBackedKey key: keyList) {
             writeStr += key.toString();
         }
         writeStr += "selectedKeyLabel=" + selectedKeyLabel;
@@ -178,11 +157,11 @@ public class _HSMManager {
      *
      * @param key: Key to be added.
      */
-    public void addKey(_HardwareBackedKey key) {
+    public void addKey(HWHardwareBackedKey key) {
         /* add key keyList but check if key label already exists
          * -> if yes update key (remove old one and add new one) */
-        List<_HardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
-        for(_HardwareBackedKey k : keyListCopy) {
+        List<HWHardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
+        for(HWHardwareBackedKey k : keyListCopy) {
             if(k.getLabel().equals(key.getLabel())){
                 keyList.remove(k);
             }
@@ -202,7 +181,7 @@ public class _HSMManager {
      * @param label: Key to be deleted.
      */
     public void deleteKey(String label) {
-        _HardwareBackedKey key = getKeyFromAlias(label);
+        HWHardwareBackedKey key = getKeyFromAlias(label);
         if(key != null) {
             keyList.remove(key);
         }else{
@@ -223,8 +202,8 @@ public class _HSMManager {
      * @param alias: Alias of key we are looking for.
      * @return     : First _HardwareBackedKey with same label/alias.
      */
-    public _HardwareBackedKey getKeyFromAlias(String alias) {
-        for(_HardwareBackedKey key: keyList) {
+    public HWHardwareBackedKey getKeyFromAlias(String alias) {
+        for(HWHardwareBackedKey key: keyList) {
             if(key.getLabel().equals(alias)) {
                 return key;
             }
@@ -236,7 +215,7 @@ public class _HSMManager {
      * Function to return the keyList.
      * @return: keyList.
      */
-    public List<_HardwareBackedKey> getKeyList() {
+    public List<HWHardwareBackedKey> getKeyList() {
         return keyList;
     }
 
@@ -249,7 +228,7 @@ public class _HSMManager {
      * @param keyID  : Slot ID of the key to use.
      * @return       : New PSK key.
      */
-    public Key hsmOperation(_HardwareBackedKey.KeyType keyType, String pin, String init, byte keyID) throws NoSuchAlgorithmException{
+    public Key hsmOperation(HWHardwareBackedKey.KeyType keyType, String pin, String init, byte keyID) throws NoSuchAlgorithmException{
         Key newPSK = null;
         try {
             /* Startup */
@@ -279,7 +258,7 @@ public class _HSMManager {
                 return null;
             }
 
-            sc.setAPDUTracer(new StreamingAPDUTracer(new PrintStream(new LogCatOutputStream_())));
+            sc.setAPDUTracer(new StreamingAPDUTracer(new PrintStream(new HWLogCatOutputStream())));
             Log.i(TAG, "Card found");
 
             Log.i(TAG, "Trying to create card service...");

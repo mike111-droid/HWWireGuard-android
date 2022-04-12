@@ -3,17 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.wireguard.crypto;
+package com.wireguard.hwbacked;
 
 import java.text.SimpleDateFormat;
 
 /**
  * Class to return String with current timestamp in format "yyyy.MM.dd.HH".
  */
-public class _Timestamp {
+public class HWTimestamp {
     java.sql.Timestamp timestamp;
     private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd.HH");
-    public _Timestamp() { }
+    public HWTimestamp() { }
 
     /**
      * Function to return timestamp in the format "yyyy.MM.dd.HH"

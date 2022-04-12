@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.wireguard.crypto;
+package com.wireguard.hwbacked;
 
 /**
  * The class offers:
@@ -11,7 +11,7 @@ package com.wireguard.crypto;
  *      2. Enums HardwareType (KEYSTORE, HSM) and KeyType (AESCBC, AESECB, RSA for AndroidKeyStore AND AES, RSA for SmartCard-HSM)
  *      3. Getter methods, Constructor acts as Setter, toString() for saving.
  */
-public class _HardwareBackedKey {
+public class HWHardwareBackedKey {
     private HardwareType hardwareType;
     private String label;
     private byte slot;
@@ -37,7 +37,7 @@ public class _HardwareBackedKey {
      * @param slot
      * @param type
      */
-    public _HardwareBackedKey(HardwareType hardwareType, String label, byte slot, KeyType type) {
+    public HWHardwareBackedKey(HardwareType hardwareType, String label, byte slot, KeyType type) {
         this.hardwareType = hardwareType;
         this.label = label;
         this.slot = slot;

@@ -1,14 +1,14 @@
 /*
  * Copyright © 2017-2022 WireGuard LLC. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
- *
- * This class is supposed to perform the Ratchet Operation (SHA256) on a given Key and return the new PSK
- * as Key Datatype.
  */
 
-package com.wireguard.crypto;
+package com.wireguard.hwbacked;
 
 import android.util.Log;
+
+import com.wireguard.crypto.Key;
+import com.wireguard.crypto.KeyFormatException;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -18,9 +18,9 @@ import java.security.NoSuchAlgorithmException;
 /**
  * Class to perform RatchetOperation. newPSK = SHA256(oldPSK)
  */
-public class _RatchetManager {
+public class HWRatchetManager {
     private static final String TAG = "WireGuard/RatchetManager";
-    public _RatchetManager() { }
+    public HWRatchetManager() { }
 
     /**
      * Function to return new key from hashed old key.

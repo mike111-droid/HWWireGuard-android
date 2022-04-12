@@ -1,12 +1,9 @@
 /*
  * Copyright © 2017-2022 WireGuard LLC. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
- *
- * This class is supposed to manage the AndroidKeyStore Operations.
- * It can take an initial value and return a PSK in Base64 as String.
  */
 
-package com.wireguard.crypto;
+package com.wireguard.hwbacked;
 
 import android.content.Context;
 import android.os.Build;
@@ -16,8 +13,10 @@ import android.security.keystore.KeyProtection;
 import android.util.Base64;
 import android.util.Log;
 
-import com.wireguard.crypto._HardwareBackedKey.HardwareType;
-import com.wireguard.crypto._HardwareBackedKey.KeyType;
+import com.wireguard.hwbacked.HWHardwareBackedKey.HardwareType;
+import com.wireguard.hwbacked.HWHardwareBackedKey.KeyType;
+import com.wireguard.crypto.Key;
+import com.wireguard.crypto.KeyFormatException;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -67,12 +66,12 @@ import javax.crypto.spec.SecretKeySpec;
  *      3. selectedKeyLabel to identify one AndroidKeyStore key to use in operations (provides Getter and Setter Method)
  *      4. Operations to store/load keyList and selectedKeyLabel into file HSMKeys.txt
  */
-public class _KeyStoreManager {
+public class HWKeyStoreManager {
     private static final String TAG = "WireGuard/KeyStoreManager";
     private String selectedKeyLabel = "NOTSELECTED";
-    public List<_HardwareBackedKey> keyList;
+    public List<HWHardwareBackedKey> keyList;
     private Context context;
-    public _KeyStoreManager(Context context) throws IOException {
+    public HWKeyStoreManager(Context context) throws IOException {
         this.context = context;
         keyList = new ArrayList<>();
         loadKeys();
@@ -109,12 +108,12 @@ public class _KeyStoreManager {
      * @param keyStoreKey: String with key.
      * @return           : HSMKey.
      */
-    public _HardwareBackedKey parseKey(String keyStoreKey) {
+    public HWHardwareBackedKey parseKey(String keyStoreKey) {
         String[] split = keyStoreKey.split(",");
         String label = split[0].split("=")[1];
         byte slot = Byte.valueOf(split[1].split("=")[1]);
-        _HardwareBackedKey.KeyType type = _HardwareBackedKey.KeyType.valueOf(split[2].split("=")[1]);
-        return new _HardwareBackedKey(HardwareType.KEYSTORE, label, slot, type);
+        HWHardwareBackedKey.KeyType type = HWHardwareBackedKey.KeyType.valueOf(split[2].split("=")[1]);
+        return new HWHardwareBackedKey(HardwareType.KEYSTORE, label, slot, type);
     }
 
     /**
@@ -162,7 +161,7 @@ public class _KeyStoreManager {
      */
     public void storeKeys() throws IOException {
         String writeStr = new String();
-        for(_HardwareBackedKey key: keyList) {
+        for(HWHardwareBackedKey key: keyList) {
             writeStr += key.toString();
         }
         writeStr += "selectedKeyLabel=" + selectedKeyLabel;
@@ -206,13 +205,13 @@ public class _KeyStoreManager {
         }
         /* add key keyList but check if key label alread exists
          * -> if yes update key (do not add to keyList) */
-        List<_HardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
-        for(_HardwareBackedKey k : keyListCopy) {
+        List<HWHardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
+        for(HWHardwareBackedKey k : keyListCopy) {
             if(k.getLabel().equals(alias)){
                 keyList.remove(k);
             }
         }
-        keyList.add(new _HardwareBackedKey(HardwareType.KEYSTORE, alias, (byte) 0x0, KeyType.AESCBC));
+        keyList.add(new HWHardwareBackedKey(HardwareType.KEYSTORE, alias, (byte) 0x0, KeyType.AESCBC));
         try {
             storeKeys();
         } catch (IOException e) {
@@ -252,13 +251,13 @@ public class _KeyStoreManager {
         }
         /* add key keyList but check if key label already exists
         * -> if yes update key (do not add to keyList) */
-        List<_HardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
-        for(_HardwareBackedKey k : keyListCopy) {
+        List<HWHardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
+        for(HWHardwareBackedKey k : keyListCopy) {
             if(k.getLabel().equals(alias)){
                 keyList.remove(k);
             }
         }
-        keyList.add(new _HardwareBackedKey(HardwareType.KEYSTORE, alias, (byte) 0x0, KeyType.AESCBC));
+        keyList.add(new HWHardwareBackedKey(HardwareType.KEYSTORE, alias, (byte) 0x0, KeyType.AESCBC));
         try {
             storeKeys();
         } catch (IOException e) {
@@ -315,13 +314,13 @@ public class _KeyStoreManager {
 
         /* add key keyList but check if key label already exists
          * -> if yes update key (remove and add) */
-        List<_HardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
-        for(_HardwareBackedKey k : keyListCopy) {
+        List<HWHardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
+        for(HWHardwareBackedKey k : keyListCopy) {
             if(k.getLabel().equals(alias)){
                 keyList.remove(k);
             }
         }
-        keyList.add(new _HardwareBackedKey(HardwareType.KEYSTORE, alias, (byte) 0x0, KeyType.RSA));
+        keyList.add(new HWHardwareBackedKey(HardwareType.KEYSTORE, alias, (byte) 0x0, KeyType.RSA));
 
         /* Store keys of keyList in KeyStoreKeys.txt file */
         try {
@@ -341,7 +340,7 @@ public class _KeyStoreManager {
      */
     public boolean deleteKey(String alias) {
         /* Handle keyList */
-        _HardwareBackedKey key = getKeyFromAlias(alias);
+        HWHardwareBackedKey key = getKeyFromAlias(alias);
         if(key != null) {
             keyList.remove(key);
         }else{
@@ -375,8 +374,8 @@ public class _KeyStoreManager {
      * @param alias: Alias of key we are looking for.
      * @return     : First _HardwareBackedKey with same label/alias.
      */
-    public _HardwareBackedKey getKeyFromAlias(String alias) {
-        for(_HardwareBackedKey key: keyList) {
+    public HWHardwareBackedKey getKeyFromAlias(String alias) {
+        for(HWHardwareBackedKey key: keyList) {
             if(key.getLabel().equals(alias)) {
                 return key;
             }
@@ -388,7 +387,7 @@ public class _KeyStoreManager {
      * Function to return the keyList.
      * @return: keyList.
      */
-    public List<_HardwareBackedKey> getKeyList() {
+    public List<HWHardwareBackedKey> getKeyList() {
         return keyList;
     }
 

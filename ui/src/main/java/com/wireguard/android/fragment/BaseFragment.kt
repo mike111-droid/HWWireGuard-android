@@ -12,7 +12,6 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.databinding.DataBindingUtil
 import androidx.databinding.ViewDataBinding
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
@@ -29,19 +28,14 @@ import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.applicationScope
 import com.wireguard.crypto.Key
-import com.wireguard.crypto._HSMManager
-import com.wireguard.crypto._HardwareBackedKey
-import com.wireguard.crypto._RatchetManager
-import com.wireguard.crypto._Timestamp
+import com.wireguard.hwbacked.HWHSMManager
+import com.wireguard.hwbacked.HWHardwareBackedKey
+import com.wireguard.hwbacked.HWRatchetManager
+import com.wireguard.hwbacked.HWTimestamp
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.coroutineContext
 
 /**
  * Base class for fragments that need to know the currently-selected tunnel. Only does anything when
@@ -97,13 +91,14 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         }
 
         private suspend fun ratchet(key: Key) : Key {
-            val ratchetManager = _RatchetManager()
+            val ratchetManager =
+                HWRatchetManager()
             return ratchetManager.ratchet(key)
         }
 
         private suspend fun monitor(tunnel: ObservableTunnel) {
             Log.i(TAG, "Checking tunnel: $tunnel")
-            val timestamp = _Timestamp().timestamp
+            val timestamp = HWTimestamp().timestamp
             //Log.i(TAG, "timestamp: $timestamp")
             //Log.i(TAG, "oldTimestamp: $oldTimestamp")
             if(timestamp != oldTimestamp) {
@@ -112,8 +107,9 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                 val useHSM = pref.getBoolean("use_hsm", false)
                 if(useHSM) {
                     Log.i(TAG, "Using SmartCard-HSM...")
-                    val hsmManager = _HSMManager(context)
-                    val newPSK = hsmManager.hsmOperation(_HardwareBackedKey.KeyType.RSA,"123456", timestamp, 0x3)
+                    val hsmManager =
+                        HWHSMManager(context)
+                    val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA,"123456", timestamp, 0x3)
                     val config = tunnel.config ?: return
                     for((counter, peer) in config.peers.withIndex()) {
                         Log.i(
