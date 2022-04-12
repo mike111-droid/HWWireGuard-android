@@ -11,7 +11,9 @@ package com.wireguard.crypto;
 import android.content.Context;
 import android.util.Log;
 
+import com.wireguard.android.backend.Backend;
 import com.wireguard.crypto._HardwareBackedKey.HardwareType;
+import com.wireguard.crypto._HardwareBackedKey.KeyType;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -22,19 +24,27 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 import de.cardcontact.opencard.android.swissbit.SBMicroSDCardTerminalFactory;
 import de.cardcontact.opencard.factory.SmartCardHSMCardServiceFactory;
 import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMCardService;
+import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMKey;
 import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMRSAKey;
 import de.cardcontact.opencard.utils.StreamingAPDUTracer;
 import opencard.core.service.CardRequest;
+import opencard.core.service.CardServiceException;
 import opencard.core.service.CardServiceFactory;
 import opencard.core.service.CardServiceRegistry;
 import opencard.core.service.SmartCard;
+import opencard.core.terminal.CardTerminalException;
 import opencard.core.terminal.CardTerminalRegistry;
+import opencard.core.terminal.CommandAPDU;
+import opencard.core.terminal.ResponseAPDU;
 
 
 /**
@@ -236,14 +246,15 @@ public class _HSMManager {
     }
 
     /**
-     * Function to return key with init as initial value (Using RSA)
+     * Function to perform either AES or RSA operation on the HSM.
      *
-     * @param     pin: String with pin value for HSM (is checked at the start but should be correct otherwise HSM might lock)
-     * @param    init: String with init value
-     * @param   keyID: Byte with the slot number of which key should be used (Needs to be set by user)
-     * @return       : Key that can be used as new PSK
+     * @param keyType: Specifies whether to use KeyType.AES or KeyType.RSA.
+     * @param pin
+     * @param init
+     * @param keyID
+     * @return
      */
-    public Key hsmOperationRSA(String pin, String init, byte keyID) {
+    public Key hsmOperation(_HardwareBackedKey.KeyType keyType, String pin, String init, byte keyID) throws NoSuchAlgorithmException{
         Key newPSK = null;
         try {
             /* Startup */
@@ -252,7 +263,7 @@ public class _HSMManager {
             Log.i(TAG, "Creating card terminal registry...");
             CardTerminalRegistry ctr = CardTerminalRegistry.getRegistry();
 
-            /* Add SwissBit card terminal to regiatry */
+            /* Add SwissBit card terminal to registry */
             SBMicroSDCardTerminalFactory sbcardf = new SBMicroSDCardTerminalFactory(context);
             sbcardf.createCardTerminals(ctr, null);
 
@@ -286,7 +297,7 @@ public class _HSMManager {
                 return null;
             }
 
-            /* HSM Operation */
+            /* init to bytes */
             byte[] data = init.getBytes();
             StringBuilder tmp2 = new StringBuilder();
             for (byte aByte : data) {
@@ -300,10 +311,21 @@ public class _HSMManager {
             byte[] digest = sha256.digest();
             Log.i(TAG, "sha256.digest: " + digest.toString());
 
-            /* RSA operation on HSM */
-            SmartCardHSMRSAKey rsa2048Key = new SmartCardHSMRSAKey( keyID, "RSA-v1-5-SHA-256", (short) 2048);
-            byte[] sig = schsmcs.signHash(rsa2048Key, "SHA256withRSA", "PKCS1_V15", digest);
-            sha256.update(sig);
+            /* HSM Operation */
+            byte[] res = null;
+            if(keyType == KeyType.AES) {
+                /* AES on HSM */
+                res = hsmOperationAES(schsmcs, digest, keyID);
+            }else if(keyType == KeyType.RSA){
+                /* RSA on HSM */
+                res = hsmOperationRSA(schsmcs, digest, keyID);
+            }else{
+                // TODO: Check if exception ends program...
+                throw new NoSuchAlgorithmException("keyType " + keyType + " is not supported on SmartCard-HSM.");
+            }
+
+            /* Hash result */
+            sha256.update(res);
             byte[] psk = sha256.digest();
             StringBuilder strSig = new StringBuilder();
             for (byte aByte : psk) {
@@ -311,7 +333,6 @@ public class _HSMManager {
             }
             Log.i(TAG, "psk: " + strSig.toString());
             newPSK = Key.fromHex(strSig.toString());
-
         } catch (Exception e) {
             Log.i(TAG, Log.getStackTraceString(e));
             return null;
@@ -327,16 +348,52 @@ public class _HSMManager {
     }
 
     /**
-     * Function to return key with init as initial value (Using RSA)
+     * Function to perform the RSA operation on the HSM. Only keys with length 2048 allowed.
      *
-     * @param context: Context of activity from where this function is called (necessary for SBMicroSDCardTerminalFactory)
-     * @param     pin: String with pin value for HSM (is checked at the start but should be correct otherwise HSM might lock)
-     * @param    init: String with init value
-     * @param   keyID: Byte with the slot number of which key should be used (Needs to be set by user)
-     * @return       : Key that can be used as new PSK
+     * @param schsmcs: SmartCardHSMCardService that is needed for signHash function.
+     * @param digest : Byte array used as input (hash of init)
+     * @param keyID  : Slot of key to be used.
+     * @return       : Byte array with signature.
+     * @throws CardServiceException : Exception of SmartCardHSMCardService.
+     * @throws CardTerminalException: Exception of SmartCardHSMCardService.
      */
-    public Key hsmOperationAES(Context context, String pin, String init, byte keyID) {
-        // TODO: Implement
-        return null;
+    public byte[] hsmOperationRSA(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
+        /* RSA operation on HSM */
+        SmartCardHSMRSAKey rsa2048Key = new SmartCardHSMRSAKey(keyID, "RSA-v1-5-SHA-256", (short) 2048);
+        byte[] sig = schsmcs.signHash(rsa2048Key, "SHA256withRSA", "PKCS1_V15", digest);
+        return sig;
+    }
+
+    /**
+     * Function to perform the AES operation on the HSM. Only keys with length 256 allowed.
+     *
+     * @param schsmcs: SmartCardHSMCardService that is needed for sendCommandAPDU function.
+     * @param digest : Byte array used as input (hash of init)
+     * @param keyID  : Slot of key to be used.
+     * @return       : Byte array with signature.
+     * @throws CardServiceException : Exception of SmartCardHSMCardService.
+     * @throws CardTerminalException: Exception of SmartCardHSMCardService.
+     */
+    public byte[] hsmOperationAES(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
+        /* AES operation on HSM. APDU package according to documentation. */
+        SmartCardHSMKey aesKey = new SmartCardHSMKey(keyID, "AES_KEY", (short) 256, "AES");
+        int length = digest.length;
+        CommandAPDU com = new CommandAPDU(9 + length);
+        com.append((byte) -128);
+        com.append((byte) 120);
+        int keyNo = aesKey.getKeyRef();
+        Log.i(TAG, "keyNo: " + keyNo);
+        com.append((byte) keyNo);
+        com.append((byte) 16);
+        com.append((byte) 0);
+        com.append((byte) (length >> 8));
+        com.append((byte) length);
+        com.append(digest);
+        com.append((byte) 0);
+        com.append((byte) 0);
+        Log.i(TAG, "com: " + com.getBytes());
+        ResponseAPDU rsp = schsmcs.sendCommandAPDU(com);
+        byte[] enc = rsp.data();
+        return enc;
     }
 }

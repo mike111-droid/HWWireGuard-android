@@ -13,7 +13,7 @@ import java.text.SimpleDateFormat;
 public class _Timestamp {
     java.sql.Timestamp timestamp;
     private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd.HH");
-    _Timestamp() { }
+    public _Timestamp() { }
 
     /**
      * Function to return timestamp in the format "yyyy.MM.dd.HH"

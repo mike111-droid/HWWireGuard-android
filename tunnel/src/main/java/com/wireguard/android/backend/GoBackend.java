@@ -168,10 +168,19 @@ public final class GoBackend implements Backend {
                 }
             }
             /* Custom change begin */
-            else if (line.startsWith("preshared_key=")) {
+             else if (line.startsWith("last_handshake_time_sec=")) {
                 if (key == null)
                     continue;
                 //Log.i(TAG, line.substring(24) + " last_handshake_time_sec was found");
+                stats.addLastHandshakeTime(key, Integer.parseInt(line.substring(24)));
+            } else if (line.startsWith("handshakeAttempts=")) {
+                if (key == null)
+                    continue;
+                //Log.i(TAG, line.substring(18) + " handshakeAttempts was found");
+                stats.addHandshakeAttempts(key, Integer.parseInt(line.substring(18)));
+            } else if (line.startsWith("preshared_key=")) {
+                if (key == null)
+                    continue;
                 try {
                     psk = Key.fromHex(line.substring(14));
                     stats.addPresharedKey(key, psk);
