@@ -10,3 +10,7 @@ $ git clone https://github.com/mike111-droid/WireGuardHSM-androidGoBackend
 $ cd WireGuardHSM-android
 $ ./gradlew assembleRelease
 ```
+
+## SmartCard-HSM (sc-hsm-android-library)
+
+This library is necessary to run this program but it is not open source. 
