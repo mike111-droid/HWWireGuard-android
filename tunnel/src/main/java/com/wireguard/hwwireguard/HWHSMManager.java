@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.wireguard.hwbacked;
+package com.wireguard.hwwireguard;
 
 import android.content.Context;
 import android.util.Log;
 
-import com.wireguard.hwbacked.HWHardwareBackedKey.HardwareType;
-import com.wireguard.hwbacked.HWHardwareBackedKey.KeyType;
+import com.wireguard.hwwireguard.HWHardwareBackedKey.HardwareType;
+import com.wireguard.hwwireguard.HWHardwareBackedKey.KeyType;
 import com.wireguard.crypto.Key;
 
 import java.io.BufferedReader;

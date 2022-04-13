@@ -23,19 +23,12 @@ import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.databinding.TunnelListItemBinding
+import com.wireguard.android.hwwireguard.HWMonitor
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.applicationScope
-import com.wireguard.crypto.Key
-import com.wireguard.hwbacked.HWHSMManager
-import com.wireguard.hwbacked.HWHardwareBackedKey
-import com.wireguard.hwbacked.HWRatchetManager
-import com.wireguard.hwbacked.HWTimestamp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Base class for fragments that need to know the currently-selected tunnel. Only does anything when
@@ -53,82 +46,10 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         pendingTunnelUp = null
     }
     /* Custom change begin */
-
+    private lateinit var monitor: HWMonitor
     override fun onCreate(savedInstanceState: Bundle?) {
-        monitor = Monitor(requireContext())
+        monitor = HWMonitor(requireContext())
         super.onCreate(savedInstanceState)
-    }
-    private lateinit var monitor: Monitor
-
-    // TODO: Question - atomic boolean for cross coroutine communication?
-    /**
-     * Class for monitoring the tunnels and changing PSKs according to selected version.
-     */
-    class Monitor(context: Context) {
-        companion object {
-            private const val TAG = "WireGuard/Monitor"
-        }
-        private var run: AtomicBoolean = AtomicBoolean(false);
-        private var oldTimestamp: String? = null
-        private val context: Context = context
-
-        fun startMonitor() {
-            Log.i(TAG, "inside startMonitor")
-            run.set(true)
-            applicationScope.launch(Dispatchers.Default) {
-                while(run.get()) {
-                    for(tunnel in Application.getTunnelManager().getTunnels()) {
-                        monitor(tunnel)
-                    }
-                    delay(3000)
-                }
-            }
-        }
-
-        fun stopMonitor() {
-            Log.i(TAG, "inside stopMonitor")
-            run.set(false)
-        }
-
-        private suspend fun ratchet(key: Key) : Key {
-            val ratchetManager =
-                HWRatchetManager()
-            return ratchetManager.ratchet(key)
-        }
-
-        private suspend fun monitor(tunnel: ObservableTunnel) {
-            Log.i(TAG, "Checking tunnel: $tunnel")
-            val timestamp = HWTimestamp().timestamp
-            //Log.i(TAG, "timestamp: $timestamp")
-            //Log.i(TAG, "oldTimestamp: $oldTimestamp")
-            if(timestamp != oldTimestamp) {
-                /* PSK needs to be reloaded with new timestamp */
-                val pref = PreferencesPreferenceDataStore(applicationScope, Application.getPreferencesDataStore())
-                val useHSM = pref.getBoolean("use_hsm", false)
-                if(useHSM) {
-                    Log.i(TAG, "Using SmartCard-HSM...")
-                    val hsmManager =
-                        HWHSMManager(context)
-                    val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA,"123456", timestamp, 0x3)
-                    val config = tunnel.config ?: return
-                    for((counter, peer) in config.peers.withIndex()) {
-                        Log.i(
-                            TAG,
-                            "psk before: " + Application.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
-                        )
-                        config.peers[counter].setPreSharedKey(newPSK)
-                        Application.getBackend().addConf(config)
-                        Log.i(
-                            TAG,
-                            "psk after: " + Application.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
-                        )
-                    }
-                }else{
-                    Log.i(TAG, "Using AndroidKeyStore...")
-                }
-            }
-            oldTimestamp = timestamp
-        }
     }
     /* Custom change end */
 
@@ -166,7 +87,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                 }
             }
             /* Custom change begin */
-            if(checked) {
+            if(checked && PreferencesPreferenceDataStore(applicationScope, Application.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
                 Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
                 monitor.startMonitor()
             }else{
@@ -175,38 +96,6 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }
             /* Custom change end */
             setTunnelStateWithPermissionsResult(tunnel, checked)
-            /* Custom change begin */
-            /*if(checked) {
-                Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
-                monitor.startMonitor()
-            }else{
-                Log.i(TAG, "Tunnel state is down, so we stop the Monitor.")
-                monitor.stopMonitor()
-            }*/
-            /*for ((counter, peer) in config.peers.withIndex()) {
-                Log.i(
-                    TAG,
-                    "psk1: " + Application.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
-                )
-                /* Change psk */
-                config.peers[counter].setPreSharedKey(Key.fromBase64("6LGnM3Hz2zi2BJiz5iyIHbgg/FCU38JzVuxxyQsQkR0="))
-                //Application.getBackend().setState(tunnel, tunnel.state, config)
-                Application.getBackend().addConf(config)
-                //delay(500)
-                Log.i(
-                    TAG,
-                    "psk2: " + Application.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
-                )
-                config.peers[counter].setPreSharedKey(Key.fromBase64("or/ZJXL3mejqaF+5TyGpYhr02ceXgE15Ysqt2Xia81o="))
-                //Application.getBackend().setState(tunnel, tunnel.state, config)
-                Application.getBackend().addConf(config)
-                //delay(500)
-                Log.i(
-                    TAG,
-                    "endPSK: " + Application.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
-                )
-            }*/
-            /* Custom change end */
         }
     }
 

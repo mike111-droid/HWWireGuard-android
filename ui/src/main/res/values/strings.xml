@@ -248,4 +248,14 @@
     <string name="biometric_auth_error_reason">Authentication failure: %s</string>
     <string name="key_option_title">Choose Key</string>
     <string name="key_option_summary">Choose or add hardware-backed keys</string>
+    <string-array name="hwbacked">
+        <item>none</item>
+        <item>AndroidKeyStore</item>
+        <item>SmartCardHSM</item>
+    </string-array>
+    <string-array name="hwbackedlonger">
+        <item>Using no hardware-backed key storage</item>
+        <item>Using AndroidKeystores for key storage</item>
+        <item>Using SmartCard-HSM for key storage</item>
+    </string-array>
 </resources>

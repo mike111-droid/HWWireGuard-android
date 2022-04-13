@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.wireguard.hwbacked;
+package com.wireguard.hwwireguard;
 
 import java.text.SimpleDateFormat;
 

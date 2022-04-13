@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.wireguard.hwbacked;
+package com.wireguard.hwwireguard;
 
 import android.content.Context;
 import android.os.Build;
@@ -13,8 +13,8 @@ import android.security.keystore.KeyProtection;
 import android.util.Base64;
 import android.util.Log;
 
-import com.wireguard.hwbacked.HWHardwareBackedKey.HardwareType;
-import com.wireguard.hwbacked.HWHardwareBackedKey.KeyType;
+import com.wireguard.hwwireguard.HWHardwareBackedKey.HardwareType;
+import com.wireguard.hwwireguard.HWHardwareBackedKey.KeyType;
 import com.wireguard.crypto.Key;
 import com.wireguard.crypto.KeyFormatException;
 
@@ -175,6 +175,7 @@ public class HWKeyStoreManager {
         }
     }
 
+    // TODO: combine to one function addKeyStoreKey
     /**
      * Function to add new AES key to AndroidKeyStore.
      * // TODO: Prevent delimiter char '=' from being in Alias (and NOTSELECTED)
@@ -418,6 +419,8 @@ public class HWKeyStoreManager {
             return null;
         }
     }
+
+    // TODO: combine to one function keyStoreOperation
 
     /**
      * Function to return key with init as initial value (Using AES CBC).
