@@ -48,7 +48,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
     /* Custom change begin */
     private lateinit var monitor: HWMonitor
     override fun onCreate(savedInstanceState: Bundle?) {
-        monitor = HWMonitor(requireContext())
+        monitor = HWMonitor(requireContext(), requireActivity())
         super.onCreate(savedInstanceState)
     }
     /* Custom change end */
