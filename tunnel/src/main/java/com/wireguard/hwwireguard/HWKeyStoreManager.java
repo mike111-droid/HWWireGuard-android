@@ -423,12 +423,13 @@ public class HWKeyStoreManager {
     // TODO: clean up catch clause
 
     /**
-     * Function to perform the AndroidKeyStore operation (AESECB or RSA).
+     * Function to perform the AndroidKeyStore operation (AES_ECB or RSA).
      *
-     * @param keyType: Allowed AES or RSA. AES leads to AESECB.
+     * @param keyType: Allowed AES or RSA. AES leads to AES_ECB.
      * @param alias  : Alias of key to use.
      * @param init   : Input to sign or encrypt.
      * @return       : Key for newPSK.
+     * @exception NoSuchAlgorithmException: KeyTypes AESECB and AESCBC are not allowed.
      */
     public Key keyStoreOperation(KeyType keyType, String alias, String init) {
         KeyStore keyStore;
@@ -438,26 +439,19 @@ public class HWKeyStoreManager {
             byte[] initBytes = init.getBytes("UTF8");
 
             if(keyType == KeyType.AES) {
-                java.security.Key key = keyStore.getKey(alias, null);
-
-                /* Prepare cipher */
                 Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
-                cipher.init(Cipher.ENCRYPT_MODE, key);
-
-                /* Encrypt init with AES_CBC*/
+                cipher.init(Cipher.ENCRYPT_MODE, keyStore.getKey(alias, null));
                 MessageDigest sha256 = MessageDigest.getInstance("SHA256");
+
+                /* Encrypt SHA256(initBytes) with AES_ECB */
                 sha256.update(initBytes);
                 byte[] digestBytes = sha256.digest();
-                byte[] pskBytes = cipher.doFinal(digestBytes);
-
-                /* Return new PSK */
-                return Key.fromBase64(Base64.encodeToString(pskBytes, Base64.DEFAULT));
+                return Key.fromBase64(Base64.encodeToString(cipher.doFinal(digestBytes), Base64.DEFAULT));
             }else if(keyType == KeyType.RSA) {
-                KeyStore.Entry entry = keyStore.getEntry(alias, null);
-
-                PrivateKey privKey = ((KeyStore.PrivateKeyEntry) entry).getPrivateKey();
                 Signature sig = Signature.getInstance("SHA256WithRSA");
-                sig.initSign(privKey);
+                sig.initSign(((KeyStore.PrivateKeyEntry) keyStore.getEntry(alias, null)).getPrivateKey());
+
+                /* Sign initBytes with SHA256WithRSA */
                 sig.update(initBytes);
                 return Key.fromBase64(Base64.encodeToString(sig.sign(), Base64.DEFAULT));
             }else{
