@@ -182,19 +182,6 @@
                     android:text="@={item.allowedIps}" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!--Custom change begin (HSMRatchet)-->
-            <CheckBox
-                android:id="@+id/selected_checkboxhsm"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:checked="@={item.HSMRatchetChecked}"
-                android:nextFocusDown="@id/selected_checkbox"
-                android:nextFocusForward="@id/selected_checkbox"
-                android:text="@string/hsmratchet_checked"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/allowed_ips_label_layout" />
-            <!--Custom change end (HSMRatchet)-->
-
             <CheckBox
                 android:id="@+id/selected_checkbox"
                 android:layout_width="wrap_content"
@@ -206,7 +193,7 @@
                 android:visibility="@{item.ableToExcludePrivateIps ? View.VISIBLE : View.GONE}"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/selected_checkboxhsm" />
+                app:layout_constraintTop_toBottomOf="@+id/allowed_ips_label_layout" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>

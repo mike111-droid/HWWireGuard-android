@@ -231,25 +231,13 @@ public class HWKeyStoreManager {
      * @return     : True for success. False for failure.
      */
     public boolean addKeyStoreKeyAESCBC(String alias, String key) {
-        /* Import AES key into KeyStore */
-        byte[] importKeyBytes = Base64.decode(key, Base64.DEFAULT);
-        SecretKey importKey = new SecretKeySpec(importKeyBytes, 0, importKeyBytes.length, "AES");
-        KeyStore keyStore;
         try {
-            keyStore = KeyStore.getInstance("AndroidKeyStore");
-            keyStore.load(null);
-            keyStore.setEntry(
-                    alias,
-                    new KeyStore.SecretKeyEntry(importKey),
-                    new KeyProtection.Builder(KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-                            .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
-                            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                            .setRandomizedEncryptionRequired(false)
-                            .build());
-        } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException e) {
+            importAESKeyIntoKeyStore(alias, key);
+        } catch (CertificateException | KeyStoreException | IOException | NoSuchAlgorithmException e) {
             Log.e(TAG, Log.getStackTraceString(e));
-            return false;
+            Log.i(TAG, "Failed to add key to AndroidKeyStores.");
         }
+
         /* add key keyList but check if key label already exists
         * -> if yes update key (do not add to keyList) */
         List<HWHardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
@@ -267,6 +255,32 @@ public class HWKeyStoreManager {
         }
         return true;
     }
+
+    /**
+     * Function to import AES key into AndroidKeyStore.
+     *
+     * @param alias: Alias of key.
+     * @param key  : Base64 encode AES key as String.
+     * @throws KeyStoreException
+     * @throws CertificateException
+     * @throws IOException
+     * @throws NoSuchAlgorithmException
+     */
+    private void importAESKeyIntoKeyStore(final String alias, final String key) throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException {
+        byte[] importKeyBytes = Base64.decode(key, Base64.DEFAULT);
+        SecretKey importKey = new SecretKeySpec(importKeyBytes, 0, importKeyBytes.length, "AES");
+        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+        keyStore.load(null);
+        keyStore.setEntry(
+                alias,
+                new KeyStore.SecretKeyEntry(importKey),
+                new KeyProtection.Builder(KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                        .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
+                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                        .setRandomizedEncryptionRequired(false)
+                        .build());
+    }
+
 
     /**
      * Function to add new RSA key to AndroidKeyStore.

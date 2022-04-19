@@ -5,13 +5,23 @@
 
 package com.wireguard.android.hwwireguard
 
+import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.text.InputType
+import android.text.method.PasswordTransformationMethod
 import android.util.Log
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat.getSystemService
 import com.wireguard.android.Application
+import com.wireguard.android.R
+import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.applicationScope
@@ -54,13 +64,14 @@ class HWMonitor(context: Context, activity: Activity) {
 
     fun stopMonitor() {
         Log.i(TAG, "inside stopMonitor")
-        /* not necessary */
-        //oldTimestamp = null
+        oldTimestamp = null
         run.set(false)
     }
 
     private fun hsmOperation(timestamp: String, tunnel: ObservableTunnel) {
-        val edittext = EditText(context);
+        val edittext = EditText(context)
+        edittext.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        edittext.transformationMethod = PasswordTransformationMethod.getInstance()
         val alertDialogBuilder: AlertDialog.Builder = AlertDialog.Builder(context)
         alertDialogBuilder.setMessage("Enter the PIN of the SmartCard-HSM in order to use it.")
         alertDialogBuilder.setTitle("Authenticate yourself")
@@ -71,7 +82,6 @@ class HWMonitor(context: Context, activity: Activity) {
         alertDialogBuilder.setPositiveButton("Enter") { _, _ ->
             Toast.makeText(context, "Your pin is: " + edittext.text.toString(), Toast.LENGTH_SHORT).show()
             val pin = edittext.text.toString()
-            Log.i(TAG, "Pin is $pin")
             val hsmManager = HWHSMManager(context)
             val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, pin, timestamp, 0x3)
             val config = tunnel.config ?: return@setPositiveButton
@@ -79,6 +89,26 @@ class HWMonitor(context: Context, activity: Activity) {
         }
         val alertDialog: AlertDialog = alertDialogBuilder.create()
         alertDialog.show()
+        //addNotification()
+    }
+
+    @SuppressLint("UnspecifiedImmutableFlag")
+    fun addNotification() {
+        val builder: NotificationCompat.Builder = NotificationCompat.Builder(context)
+            .setSmallIcon(R.drawable.tv_logo_banner)
+            .setContentTitle("Enter pin")
+            .setContentText("You need to enter your pin.")
+        val notificationIntent = Intent(context, MainActivity::class.java)
+        val contentIntent: PendingIntent = PendingIntent.getActivity(
+            context, 0, notificationIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        builder.setContentIntent(contentIntent)
+
+        // Add as notification
+        val manager: NotificationManager =
+            context.getSystemService(android.app.Application.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(0, builder.build())
     }
 
     private fun keyStoreOperation(timestamp: String, tunnel: ObservableTunnel) {
@@ -112,11 +142,11 @@ class HWMonitor(context: Context, activity: Activity) {
                 applicationScope,
                 Application.getPreferencesDataStore()
             )
-            val hwbacked = pref.getString("dropdown", "none")
-            if (hwbacked == "SmartCardHSM") {
+            val hwBackend = pref.getString("dropdown", "none")
+            if (hwBackend == "SmartCardHSM") {
                 Log.i(TAG, "Using SmartCard-HSM...")
                 hsmOperation(timestamp, tunnel)
-            } else if (hwbacked == "AndroidKeyStore") {
+            } else if (hwBackend == "AndroidKeyStore") {
                 Log.i(TAG, "Using AndroidKeyStore...")
                 keyStoreOperation(timestamp, tunnel)
             }
@@ -132,4 +162,5 @@ class HWMonitor(context: Context, activity: Activity) {
             HWRatchetManager()
         return ratchetManager.ratchet(key)
     }
+
 }

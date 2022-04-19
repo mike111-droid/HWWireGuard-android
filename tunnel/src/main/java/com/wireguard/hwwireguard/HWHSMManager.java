@@ -228,7 +228,7 @@ public class HWHSMManager {
      * @param keyID  : Slot ID of the key to use.
      * @return       : New PSK key.
      */
-    public Key hsmOperation(HWHardwareBackedKey.KeyType keyType, String pin, String init, byte keyID) throws NoSuchAlgorithmException{
+    public Key hsmOperation(HWHardwareBackedKey.KeyType keyType, String pin, String init, byte keyID) throws Exception, NoSuchAlgorithmException {
         Key newPSK = null;
         try {
             /* Startup */
@@ -268,7 +268,7 @@ public class HWHSMManager {
             Log.i(TAG, "Verifying PIN...");
             if(!schsmcs.verifyPassword(null, 0, pin.getBytes())) {
                 Log.i(TAG, "PIN is incorrect. More than 3 false pins lead to locked devices!");
-                return null;
+                throw new Exception("Wrong PIN.");
             }
 
             /* init to bytes */

@@ -26,7 +26,7 @@ class FileConfigStore(private val context: Context) : ConfigStore {
         val file = fileFor(name)
         if (!file.createNewFile())
             throw IOException(context.getString(R.string.config_file_exists_error, file.name))
-        FileOutputStream(file, false).use { it.write(config.toWgQuickStringCustom().toByteArray(StandardCharsets.UTF_8)) }
+        FileOutputStream(file, false).use { it.write(config.toWgQuickString().toByteArray(StandardCharsets.UTF_8)) }
         return config
     }
 
@@ -72,7 +72,7 @@ class FileConfigStore(private val context: Context) : ConfigStore {
         val file = fileFor(name)
         if (!file.isFile)
             throw FileNotFoundException(context.getString(R.string.config_not_found_error, file.name))
-        FileOutputStream(file, false).use { stream -> stream.write(config.toWgQuickStringCustom().toByteArray(StandardCharsets.UTF_8)) }
+        FileOutputStream(file, false).use { stream -> stream.write(config.toWgQuickString().toByteArray(StandardCharsets.UTF_8)) }
         return config
     }
 

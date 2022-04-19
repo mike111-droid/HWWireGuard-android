@@ -35,10 +35,9 @@ public final class Peer {
     private final Optional<Integer> persistentKeepalive;
     private Optional<Key> preSharedKey;
     private final Key publicKey;
-    /* Custom change begin (HSMRatchet) */
-    private final Optional<Boolean> HSMRatchetChecked;
+    /* Custom change begin */
     public void setPreSharedKey(Key psk) { preSharedKey = Optional.of(psk); }
-    /* Custom change end (HSMRatchet) */
+    /* Custom change end */
 
     private Peer(final Builder builder) {
         // Defensively copy to ensure immutability even if the Builder is reused.
@@ -47,9 +46,6 @@ public final class Peer {
         persistentKeepalive = builder.persistentKeepalive;
         preSharedKey = builder.preSharedKey;
         publicKey = Objects.requireNonNull(builder.publicKey, "Peers must have a public key");
-        /* Custom change begin (HSMRatchet) */
-        HSMRatchetChecked = builder.HSMRatchetChecked;
-        /* Custom change end (HSMRatchet) */
     }
 
     /**
@@ -82,11 +78,6 @@ public final class Peer {
                 case "publickey":
                     builder.parsePublicKey(attribute.getValue());
                     break;
-                /* Custom change begin (HSMRatchet) */
-                case "hsmratchetchecked":
-                    builder.parseHSMRatchetChecked(attribute.getValue());
-                    break;
-                /* Custom change end (HSMRatchet) */
                 default:
                     throw new BadConfigException(Section.PEER, Location.TOP_LEVEL,
                             Reason.UNKNOWN_ATTRIBUTE, attribute.getKey());
@@ -104,11 +95,7 @@ public final class Peer {
                 && endpoint.equals(other.endpoint)
                 && persistentKeepalive.equals(other.persistentKeepalive)
                 && preSharedKey.equals(other.preSharedKey)
-                && publicKey.equals(other.publicKey)
-                /* Custom change begin (HSMRatchet) */
-                && HSMRatchetChecked.equals(other.HSMRatchetChecked);
-                /* Custom change end (HSMRatchet) */
-
+                && publicKey.equals(other.publicKey);
     }
 
     /**
@@ -157,16 +144,6 @@ public final class Peer {
         return publicKey;
     }
 
-    /* Custom change begin (HSMRatchet) */
-    /**
-     * Returns the peer's hsmratchet value.
-     * @return the hsmratchet value
-     */
-    public Optional<Boolean> getHSMRatchetChecked() {
-        return HSMRatchetChecked;
-    }
-    /* Custom change end (HSMRatchet) */
-
     @Override
     public int hashCode() {
         int hash = 1;
@@ -210,26 +187,6 @@ public final class Peer {
         return sb.toString();
     }
 
-    /* Custom change begin (HSMRatchet) */
-    /**
-     * Converts the {@code Peer} into a string suitable for inclusion in a {@code wg-quick}
-     * configuration file with HSMRatchet variable.
-     *
-     * @return the {@code Peer} represented as a series of "Key = Value" lines
-     */
-    public String toWgQuickStringCustom() {
-        final StringBuilder sb = new StringBuilder();
-        if (!allowedIps.isEmpty())
-            sb.append("AllowedIPs = ").append(Attribute.join(allowedIps)).append('\n');
-        endpoint.ifPresent(ep -> sb.append("Endpoint = ").append(ep).append('\n'));
-        HSMRatchetChecked.ifPresent(HSMRatchetChecked -> sb.append("HSMRatchetChecked = ").append(HSMRatchetChecked.toString()).append('\n'));
-        persistentKeepalive.ifPresent(pk -> sb.append("PersistentKeepalive = ").append(pk).append('\n'));
-        preSharedKey.ifPresent(psk -> sb.append("PreSharedKey = ").append(psk.toBase64()).append('\n'));
-        sb.append("PublicKey = ").append(publicKey.toBase64()).append('\n');
-        return sb.toString();
-    }
-    /* Custom change end (HSMRatchet) */
-
     /**
      * Serializes the {@code Peer} for use with the WireGuard cross-platform userspace API. Note
      * that not all attributes are included in this representation.
@@ -261,10 +218,6 @@ public final class Peer {
         private Optional<Integer> persistentKeepalive = Optional.empty();
         // Defaults to not present.
         private Optional<Key> preSharedKey = Optional.empty();
-        /* Custom change begin (HSMRatchet) */
-        // Default to not present.
-        private Optional<Boolean> HSMRatchetChecked = Optional.empty();
-        /* Custom change end (HSMRatchet) */
         // No default; must be provided before building.
         @Nullable private Key publicKey;
 
@@ -329,14 +282,6 @@ public final class Peer {
             }
         }
 
-        /* Custom change begin (HSMRatchet) */
-        public Builder parseHSMRatchetChecked(final String HSMRatchetChecked) throws BadConfigException {
-            return setHSMRatchetChecked(Boolean.parseBoolean(HSMRatchetChecked));
-        }
-
-
-        /* Custom change end (HSMRatchet) */
-
         public Builder setEndpoint(final InetEndpoint endpoint) {
             this.endpoint = Optional.of(endpoint);
             return this;
@@ -361,12 +306,5 @@ public final class Peer {
             this.publicKey = publicKey;
             return this;
         }
-
-        /* Custom change begin (HSMRachet) */
-        public Builder setHSMRatchetChecked(final boolean HSMRatchetChecked) {
-            this.HSMRatchetChecked = Optional.of(HSMRatchetChecked);
-            return this;
-        }
-        /* Custom change end (HSMRatchet) */
     }
 }
