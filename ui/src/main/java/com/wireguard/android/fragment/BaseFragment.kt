@@ -28,6 +28,7 @@ import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.applicationScope
+import com.wireguard.hwwireguard.HWKeyStoreManager
 import kotlinx.coroutines.launch
 
 /**
@@ -48,7 +49,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
     /* Custom change begin */
     private lateinit var monitor: HWMonitor
     override fun onCreate(savedInstanceState: Bundle?) {
-        monitor = HWMonitor(requireContext(), requireActivity())
+        monitor = HWMonitor(requireContext(), requireActivity(), this)
         super.onCreate(savedInstanceState)
     }
     /* Custom change end */

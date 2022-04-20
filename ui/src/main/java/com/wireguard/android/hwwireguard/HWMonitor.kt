@@ -7,23 +7,31 @@ package com.wireguard.android.hwwireguard
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.ActivityManager
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.text.InputType
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
 import android.widget.EditText
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat.getSystemService
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import com.google.android.material.snackbar.Snackbar
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
+import com.wireguard.android.util.BiometricAuthenticator
+import com.wireguard.android.util.activity
 import com.wireguard.android.util.applicationScope
 import com.wireguard.config.Config
 import com.wireguard.crypto.Key
@@ -40,7 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Class for monitoring the tunnels and changing PSKs according to selected version.
  */
-class HWMonitor(context: Context, activity: Activity) {
+class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     companion object {
         private const val TAG = "WireGuard/Monitor"
     }
@@ -48,7 +56,9 @@ class HWMonitor(context: Context, activity: Activity) {
     private var oldTimestamp: String? = null
     private val context: Context = context
     private val activity: Activity = activity
+    private val fragment: Fragment = fragment
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
         run.set(true)
@@ -80,7 +90,6 @@ class HWMonitor(context: Context, activity: Activity) {
         }
         alertDialogBuilder.setView(edittext)
         alertDialogBuilder.setPositiveButton("Enter") { _, _ ->
-            Toast.makeText(context, "Your pin is: " + edittext.text.toString(), Toast.LENGTH_SHORT).show()
             val pin = edittext.text.toString()
             val hsmManager = HWHSMManager(context)
             val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, pin, timestamp, 0x3)
@@ -89,7 +98,7 @@ class HWMonitor(context: Context, activity: Activity) {
         }
         val alertDialog: AlertDialog = alertDialogBuilder.create()
         alertDialog.show()
-        //addNotification()
+
     }
 
     @SuppressLint("UnspecifiedImmutableFlag")
@@ -111,8 +120,30 @@ class HWMonitor(context: Context, activity: Activity) {
         manager.notify(0, builder.build())
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun keyStoreOperation(timestamp: String, tunnel: ObservableTunnel) {
-        val keyStoreManager = HWKeyStoreManager(context)
+        BiometricAuthenticator.authenticate(R.string.biometric_prompt_zip_exporter_title, fragment) {
+            when (it) {
+                // When we have successful authentication, or when there is no biometric hardware available.
+                is BiometricAuthenticator.Result.Success, is BiometricAuthenticator.Result.HardwareUnavailableOrDisabled -> {
+                    val keyStoreManager = HWKeyStoreManager(context)
+                    for(key in keyStoreManager.getKeyList()) {
+                        Log.i(TAG, "key: ${key.label}")
+                    }
+                    val newPSK = keyStoreManager.keyStoreOperation(HWHardwareBackedKey.KeyType.RSA, "rsa_key", timestamp)
+                    val config = tunnel.config ?: return@authenticate
+                    loadNewPSK(tunnel, config, newPSK)
+                }
+                is BiometricAuthenticator.Result.Failure -> {
+                    Snackbar.make(
+                        activity.findViewById(android.R.id.content),
+                        it.message,
+                        Snackbar.LENGTH_SHORT
+                    ).show()
+                }
+                is BiometricAuthenticator.Result.Cancelled -> {}
+            }
+        }
     }
 
     private fun loadNewPSK(tunnel: ObservableTunnel, config: Config, newPSK: Key) {
@@ -132,6 +163,7 @@ class HWMonitor(context: Context, activity: Activity) {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun monitor(tunnel: ObservableTunnel) {
         Log.i(TAG, "Checking tunnel: $tunnel")
         val timestamp = HWTimestamp().timestamp
