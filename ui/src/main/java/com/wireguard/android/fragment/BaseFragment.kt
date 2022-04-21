@@ -5,6 +5,7 @@
 package com.wireguard.android.fragment
 
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -88,13 +89,17 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                 }
             }
             /* Custom change begin */
-            if(checked && PreferencesPreferenceDataStore(applicationScope, Application.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
+            Log.i(TAG, "addNotification")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                monitor.addNotification()
+            }
+            /*if(checked && PreferencesPreferenceDataStore(applicationScope, Application.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
                 Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
                 monitor.startMonitor()
-            }else{
+            } else {
                 Log.i(TAG, "Tunnel state is down, so we stop the Monitor.")
                 monitor.stopMonitor()
-            }
+            }*/
             /* Custom change end */
             setTunnelStateWithPermissionsResult(tunnel, checked)
         }

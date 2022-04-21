@@ -7,7 +7,8 @@ package com.wireguard.android.hwwireguard
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.ActivityManager
+import android.app.Notification
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -21,9 +22,7 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
 import com.google.android.material.snackbar.Snackbar
 import com.wireguard.android.Application
 import com.wireguard.android.R
@@ -31,7 +30,6 @@ import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.BiometricAuthenticator
-import com.wireguard.android.util.activity
 import com.wireguard.android.util.applicationScope
 import com.wireguard.config.Config
 import com.wireguard.crypto.Key
@@ -58,7 +56,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private val activity: Activity = activity
     private val fragment: Fragment = fragment
 
-    @RequiresApi(Build.VERSION_CODES.O)
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
         run.set(true)
@@ -101,28 +98,49 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
 
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("UnspecifiedImmutableFlag")
     fun addNotification() {
-        val builder: NotificationCompat.Builder = NotificationCompat.Builder(context)
-            .setSmallIcon(R.drawable.tv_logo_banner)
-            .setContentTitle("Enter pin")
-            .setContentText("You need to enter your pin.")
-        val notificationIntent = Intent(context, MainActivity::class.java)
-        val contentIntent: PendingIntent = PendingIntent.getActivity(
-            context, 0, notificationIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT
+        Log.i(TAG, "Started addNotification")
+        val mBuilder = NotificationCompat.Builder(context, "notify_001")
+        val ii: Intent = Intent(
+            context,
+            MainActivity::class.java
         )
-        builder.setContentIntent(contentIntent)
+        val pendingIntent = PendingIntent.getActivity(context, 0, ii, 0)
 
-        // Add as notification
-        val manager: NotificationManager =
-            context.getSystemService(android.app.Application.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(0, builder.build())
+        val bigText = NotificationCompat.BigTextStyle()
+        bigText.bigText("verse")
+        bigText.setBigContentTitle("Today's Bible Verse")
+        bigText.setSummaryText("Text in detail")
+
+        mBuilder.setContentIntent(pendingIntent)
+        mBuilder.setSmallIcon(R.mipmap.ic_launcher_round)
+        mBuilder.setContentTitle("Your Title")
+        mBuilder.setContentText("Your text")
+        mBuilder.priority = Notification.PRIORITY_MAX
+        mBuilder.setStyle(bigText)
+
+        val mNotificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId = "Your_channel_id"
+            val channel = NotificationChannel(
+                channelId,
+                "Channel human readable title",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            mNotificationManager.createNotificationChannel(channel)
+            mBuilder.setChannelId(channelId)
+        }
+
+        mNotificationManager.notify(0, mBuilder.build())
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun keyStoreOperation(timestamp: String, tunnel: ObservableTunnel) {
-        BiometricAuthenticator.authenticate(R.string.biometric_prompt_zip_exporter_title, fragment) {
+        BiometricAuthenticator.authenticate(R.string.biometric_prompt_key, fragment) {
             when (it) {
                 // When we have successful authentication, or when there is no biometric hardware available.
                 is BiometricAuthenticator.Result.Success, is BiometricAuthenticator.Result.HardwareUnavailableOrDisabled -> {
@@ -163,8 +181,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    private suspend fun monitor(tunnel: ObservableTunnel) {
+    private fun monitor(tunnel: ObservableTunnel) {
         Log.i(TAG, "Checking tunnel: $tunnel")
         val timestamp = HWTimestamp().timestamp
         /* Check if timestamp changed */
@@ -180,7 +197,12 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 hsmOperation(timestamp, tunnel)
             } else if (hwBackend == "AndroidKeyStore") {
                 Log.i(TAG, "Using AndroidKeyStore...")
-                keyStoreOperation(timestamp, tunnel)
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    keyStoreOperation(timestamp, tunnel)
+                }else{
+                    Toast.makeText(context, "Android version not high enough for key usage.", Toast.LENGTH_LONG).show()
+                    Log.i(TAG, "Android version not high enough for key usage.")
+                }
             }
             oldTimestamp = timestamp
         }
