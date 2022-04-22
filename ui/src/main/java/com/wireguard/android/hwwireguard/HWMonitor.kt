@@ -101,7 +101,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         }
     }
 
-    fun isAppInForeground(): Boolean {
+    private fun isAppInForeground(): Boolean {
         val application = context
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val runningProcessList = activityManager.runningAppProcesses
