@@ -22,6 +22,7 @@ import java.io.PrintStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import de.cardcontact.opencard.android.swissbit.SBMicroSDCardTerminalFactory;
@@ -51,9 +52,9 @@ import opencard.core.terminal.ResponseAPDU;
 public class HWHSMManager {
     private static final String TAG = "WireGuard/HSMManager";
     private String selectedKeyLabel = "NOTSELECTED";
-    public List<HWHardwareBackedKey> keyList;
-    private Context context;
-    public HWHSMManager(Context context) throws IOException {
+    private final List<HWHardwareBackedKey> keyList;
+    private final Context context;
+    public HWHSMManager(final Context context) throws IOException {
         this.context = context;
         keyList = new ArrayList<>();
         loadKeys();
@@ -63,13 +64,12 @@ public class HWHSMManager {
      * Function to set which key is selected for operation.
      * // TODO: Prevent delimiter char '=' from being in Alias (and NOTSELECTED)
      *
-     * @param label: Label/Alias of key.
      */
-    public void setSelectedKeyLabel(String label) {
-        selectedKeyLabel = label;
+    private void setSelectedKeyLabel() {
+        selectedKeyLabel = "NOTSELECTED";
         try{
             storeKeys();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             Log.e(TAG, Log.getStackTraceString(e));
         }
     }
@@ -89,11 +89,11 @@ public class HWHSMManager {
      * @param hsmKey: String with key.
      * @return      : HSMKey.
      */
-    public HWHardwareBackedKey parseKey(String hsmKey) {
-        String[] split = hsmKey.split(",");
-        String label = split[0].split("=")[1];
-        byte slot = Byte.valueOf(split[1].split("=")[1]);
-        HWHardwareBackedKey.KeyType type = HWHardwareBackedKey.KeyType.valueOf(split[2].split("=")[1]);
+    private static HWHardwareBackedKey parseKey(final String hsmKey) {
+        final String[] split = hsmKey.split(",");
+        final String label = split[0].split("=")[1];
+        final byte slot = Byte.parseByte(split[1].split("=")[1]);
+        final HWHardwareBackedKey.KeyType type = HWHardwareBackedKey.KeyType.valueOf(split[2].split("=")[1]);
         return new HWHardwareBackedKey(HardwareType.HSM, label, slot, type);
     }
 
@@ -101,13 +101,13 @@ public class HWHSMManager {
      * Function to load the HSM keys saved into keyList.
      *
      */
-    public void loadKeys() throws IOException {
-        StringBuilder stringBuilder = new StringBuilder();
+    private void loadKeys() throws IOException {
+        final StringBuilder stringBuilder = new StringBuilder();
         String line;
-        BufferedReader in;
+        final BufferedReader in;
         try {
             in = new BufferedReader(new FileReader(new File(context.getFilesDir(), "HSMKeys.txt")));
-        }catch(FileNotFoundException e){
+        }catch(final FileNotFoundException e){
             Log.i(TAG, "File HSMKey.txt not found.");
             Log.e(TAG, Log.getStackTraceString(e));
             return;
@@ -116,21 +116,22 @@ public class HWHSMManager {
         while((line = in.readLine()) != null) {
             lineCounter++;
             /* Last line contains selectedKeyLabel */
-            if(line.indexOf("selectedKeyLabel=") != -1) {
+            if(line.contains("selectedKeyLabel=")) {
                 break;
             }
             stringBuilder.append(line);
         }
         /* Check is list is empty */
         if(lineCounter > 1) {
-            String[] split = stringBuilder.toString().split("\n");
-            for(String key: split) {
+            final String[] split = stringBuilder.toString().split("\n");
+            for(final String key: split) {
                 keyList.add(parseKey(key));
             }
+            assert line != null;
             selectedKeyLabel = line.split("=")[1];
         }else{
             /* List is empty. Make sure selectedKey is NOTSELECTED. */
-            setSelectedKeyLabel("NOTSELECTED");
+            setSelectedKeyLabel();
             storeKeys();
         }
         in.close();
@@ -140,14 +141,14 @@ public class HWHSMManager {
      * Function to store the HSM keys into a file that later is used to load them again.
      *
      */
-    public void storeKeys() throws IOException {
-        String writeStr = new String();
-        for(HWHardwareBackedKey key: keyList) {
-            writeStr += key.toString();
+    private void storeKeys() throws IOException {
+        final StringBuilder writeStr = new StringBuilder();
+        for(final HWHardwareBackedKey key: keyList) {
+            writeStr.append(key.toString());
         }
-        writeStr += "selectedKeyLabel=" + selectedKeyLabel;
-        FileOutputStream streamHSMKeys = new FileOutputStream(new File(context.getFilesDir(), "HSMKeys.txt"));
-        streamHSMKeys.write(writeStr.getBytes());
+        writeStr.append("selectedKeyLabel=").append(selectedKeyLabel);
+        final FileOutputStream streamHSMKeys = new FileOutputStream(new File(context.getFilesDir(), "HSMKeys.txt"));
+        streamHSMKeys.write(writeStr.toString().getBytes());
         streamHSMKeys.close();
     }
 
@@ -157,11 +158,11 @@ public class HWHSMManager {
      *
      * @param key: Key to be added.
      */
-    public void addKey(HWHardwareBackedKey key) {
+    public void addKey(final HWHardwareBackedKey key) {
         /* add key keyList but check if key label already exists
          * -> if yes update key (remove old one and add new one) */
-        List<HWHardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
-        for(HWHardwareBackedKey k : keyListCopy) {
+        final Iterable<HWHardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
+        for(final HWHardwareBackedKey k : keyListCopy) {
             if(k.getLabel().equals(key.getLabel())){
                 keyList.remove(k);
             }
@@ -169,7 +170,7 @@ public class HWHSMManager {
         keyList.add(key);
         try {
             storeKeys();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             Log.i(TAG, "Failed to store into KeyStoreKeys.txt file.");
             Log.e(TAG, Log.getStackTraceString(e));
         }
@@ -180,8 +181,8 @@ public class HWHSMManager {
      *
      * @param label: Key to be deleted.
      */
-    public void deleteKey(String label) {
-        HWHardwareBackedKey key = getKeyFromAlias(label);
+    public void deleteKey(final String label) {
+        final HWHardwareBackedKey key = getKeyFromAlias(label);
         if(key != null) {
             keyList.remove(key);
         }else{
@@ -190,7 +191,7 @@ public class HWHSMManager {
         }
         try {
             storeKeys();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             Log.i(TAG, "Failed to store updated keyList into HSMKeys.txt file.");
             Log.e(TAG, Log.getStackTraceString(e));
         }
@@ -202,8 +203,8 @@ public class HWHSMManager {
      * @param alias: Alias of key we are looking for.
      * @return     : First _HardwareBackedKey with same label/alias.
      */
-    public HWHardwareBackedKey getKeyFromAlias(String alias) {
-        for(HWHardwareBackedKey key: keyList) {
+    private HWHardwareBackedKey getKeyFromAlias(final String alias) {
+        for(final HWHardwareBackedKey key: keyList) {
             if(key.getLabel().equals(alias)) {
                 return key;
             }
@@ -228,31 +229,31 @@ public class HWHSMManager {
      * @param keyID  : Slot ID of the key to use.
      * @return       : New PSK key.
      */
-    public Key hsmOperation(HWHardwareBackedKey.KeyType keyType, String pin, String init, byte keyID) throws Exception, NoSuchAlgorithmException {
+    public Key hsmOperation(final HWHardwareBackedKey.KeyType keyType, final String pin, final String init, final byte keyID) {
         Key newPSK = null;
         try {
             /* Startup */
             Log.i(TAG, "OCF startup...");
             SmartCard.startup();
             Log.i(TAG, "Creating card terminal registry...");
-            CardTerminalRegistry ctr = CardTerminalRegistry.getRegistry();
+            final CardTerminalRegistry ctr = CardTerminalRegistry.getRegistry();
 
             /* Add SwissBit card terminal to registry */
-            SBMicroSDCardTerminalFactory sbcardf = new SBMicroSDCardTerminalFactory(context);
+            final SBMicroSDCardTerminalFactory sbcardf = new SBMicroSDCardTerminalFactory(context);
             sbcardf.createCardTerminals(ctr, null);
 
             /* Creating service registry */
             Log.i(TAG, "Creating card service registry...");
-            CardServiceRegistry csr = CardServiceRegistry.getRegistry();
+            final CardServiceRegistry csr = CardServiceRegistry.getRegistry();
 
             /* Adding card service */
             Log.i(TAG, "Adding SmartCard-HSM card service...");
-            CardServiceFactory csf = new SmartCardHSMCardServiceFactory();
+            final CardServiceFactory csf = new SmartCardHSMCardServiceFactory();
             csr.add(csf);
 
             Log.i(TAG, "Creating card request...");
-            CardRequest cr = new CardRequest(CardRequest.ANYCARD, null, SmartCardHSMCardService.class);
-            SmartCard sc = SmartCard.waitForCard(cr);
+            final CardRequest cr = new CardRequest(CardRequest.ANYCARD, null, SmartCardHSMCardService.class);
+            final SmartCard sc = SmartCard.waitForCard(cr);
             if (sc == null) {
                 Log.i("SmartCard-HSM", "Could not get smart card...");
                 return null;
@@ -262,7 +263,7 @@ public class HWHSMManager {
             Log.i(TAG, "Card found");
 
             Log.i(TAG, "Trying to create card service...");
-            SmartCardHSMCardService schsmcs = (SmartCardHSMCardService) sc.getCardService(SmartCardHSMCardService.class, true);
+            final SmartCardHSMCardService schsmcs = (SmartCardHSMCardService) sc.getCardService(SmartCardHSMCardService.class, true);
 
             /* Verify the PIN */
             Log.i(TAG, "Verifying PIN...");
@@ -272,21 +273,21 @@ public class HWHSMManager {
             }
 
             /* init to bytes */
-            byte[] data = init.getBytes();
-            StringBuilder tmp2 = new StringBuilder();
-            for (byte aByte : data) {
+            final byte[] data = init.getBytes();
+            final StringBuilder tmp2 = new StringBuilder();
+            for (final byte aByte : data) {
                 tmp2.append(String.format("%02x", aByte));
             }
-            Log.i(TAG, "data: " + tmp2.toString());
+            Log.i(TAG, "data: " + tmp2);
 
             /* Hashing of data */
-            MessageDigest sha256 = MessageDigest.getInstance("SHA256");
+            final MessageDigest sha256 = MessageDigest.getInstance("SHA256");
             sha256.update(data);
-            byte[] digest = sha256.digest();
-            Log.i(TAG, "sha256.digest: " + digest.toString());
+            final byte[] digest = sha256.digest();
+            Log.i(TAG, "sha256.digest: " + Arrays.toString(digest));
 
             /* HSM Operation */
-            byte[] res = null;
+            final byte[] res;
             if(keyType == KeyType.AES) {
                 /* AES on HSM */
                 res = hsmOperationAES(schsmcs, digest, keyID);
@@ -300,21 +301,21 @@ public class HWHSMManager {
 
             /* Hash result */
             sha256.update(res);
-            byte[] psk = sha256.digest();
-            StringBuilder strSig = new StringBuilder();
-            for (byte aByte : psk) {
+            final byte[] psk = sha256.digest();
+            final StringBuilder strSig = new StringBuilder();
+            for (final byte aByte : psk) {
                 strSig.append(String.format("%02x", aByte));
             }
-            Log.i(TAG, "psk: " + strSig.toString());
+            Log.i(TAG, "psk: " + strSig);
             newPSK = Key.fromHex(strSig.toString());
-        } catch (Exception e) {
+        } catch (final Exception e) {
             Log.i(TAG, Log.getStackTraceString(e));
             return null;
         } finally {
             try {
                 SmartCard.shutdown();
                 return newPSK;
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 Log.i(TAG, Log.getStackTraceString(e));
                 return newPSK;
             }
@@ -331,11 +332,10 @@ public class HWHSMManager {
      * @throws CardServiceException : Exception of SmartCardHSMCardService.
      * @throws CardTerminalException: Exception of SmartCardHSMCardService.
      */
-    public byte[] hsmOperationRSA(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
+    private byte[] hsmOperationRSA(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
         /* RSA operation on HSM */
         SmartCardHSMRSAKey rsa2048Key = new SmartCardHSMRSAKey(keyID, "RSA-v1-5-SHA-256", (short) 2048);
-        byte[] sig = schsmcs.signHash(rsa2048Key, "SHA256withRSA", "PKCS1_V15", digest);
-        return sig;
+        return schsmcs.signHash(rsa2048Key, "SHA256withRSA", "PKCS1_V15", digest);
     }
 
     /**
@@ -348,7 +348,7 @@ public class HWHSMManager {
      * @throws CardServiceException : Exception of SmartCardHSMCardService.
      * @throws CardTerminalException: Exception of SmartCardHSMCardService.
      */
-    public byte[] hsmOperationAES(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
+    private byte[] hsmOperationAES(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
         /* AES operation on HSM. APDU package according to documentation. */
         SmartCardHSMKey aesKey = new SmartCardHSMKey(keyID, "AES_KEY", (short) 256, "AES");
         int length = digest.length;
@@ -365,9 +365,8 @@ public class HWHSMManager {
         com.append(digest);
         com.append((byte) 0);
         com.append((byte) 0);
-        Log.i(TAG, "com: " + com.getBytes());
-        ResponseAPDU rsp = schsmcs.sendCommandAPDU(com);
-        byte[] enc = rsp.data();
-        return enc;
+        Log.i(TAG, "com: " + Arrays.toString(com.getBytes()));
+        final ResponseAPDU rsp = schsmcs.sendCommandAPDU(com);
+        return rsp.data();
     }
 }

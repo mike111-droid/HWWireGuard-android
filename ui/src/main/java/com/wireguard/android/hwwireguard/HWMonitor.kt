@@ -5,6 +5,7 @@
 
 package com.wireguard.android.hwwireguard
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.Notification
@@ -49,16 +50,16 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     companion object {
         private const val TAG = "WireGuard/Monitor"
     }
-    private var run: AtomicBoolean = AtomicBoolean(false);
+    private var run: AtomicBoolean = AtomicBoolean(false)
     private var oldTimestamp: String? = null
-    private val context: Context = context
-    private val activity: Activity = activity
-    private val fragment: Fragment = fragment
+    private val mContext: Context = context
+    private val mActivity: Activity = activity
+    private val mFragment: Fragment = fragment
 
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
         run.set(true)
-        activity.applicationScope.launch {
+        mActivity.applicationScope.launch {
             while(run.get()) {
                 for(tunnel in Application.getTunnelManager().getTunnels()) {
                     monitor(tunnel)
@@ -75,10 +76,10 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     }
 
     private fun hsmOperation(timestamp: String, tunnel: ObservableTunnel) {
-        val edittext = EditText(context)
+        val edittext = EditText(mContext)
         edittext.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         edittext.transformationMethod = PasswordTransformationMethod.getInstance()
-        val alertDialogBuilder: AlertDialog.Builder = AlertDialog.Builder(context)
+        val alertDialogBuilder: AlertDialog.Builder = AlertDialog.Builder(mContext)
         alertDialogBuilder.setMessage("Enter the PIN of the SmartCard-HSM in order to use it.")
         alertDialogBuilder.setTitle("Authenticate yourself")
         alertDialogBuilder.setNegativeButton("Cancel") {dialog, _ ->
@@ -87,7 +88,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         alertDialogBuilder.setView(edittext)
         alertDialogBuilder.setPositiveButton("Enter") { _, _ ->
             val pin = edittext.text.toString()
-            val hsmManager = HWHSMManager(context)
+            val hsmManager = HWHSMManager(mContext)
             val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, pin, timestamp, 0x3)
             val config = tunnel.config ?: return@setPositiveButton
             loadNewPSK(tunnel, config, newPSK)
@@ -102,26 +103,26 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     }
 
     private fun isAppInForeground(): Boolean {
-        val application = context
-        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val activityManager = mContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val runningProcessList = activityManager.runningAppProcesses
         if (runningProcessList != null) {
-            val myApp = runningProcessList.find { it.processName == application.packageName }
+            val myApp = runningProcessList.find { it.processName == mContext.packageName }
             ActivityManager.getMyMemoryState(myApp)
             return myApp?.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
         }
         return false
     }
 
+    @SuppressLint("UnspecifiedImmutableFlag")
     @RequiresApi(Build.VERSION_CODES.O)
     fun addNotification() {
         Log.i(TAG, "Started addNotification")
-        val mBuilder = NotificationCompat.Builder(context, "notify_001")
+        val mBuilder = NotificationCompat.Builder(mContext, "notify_001")
         val ii = Intent(
-            context,
+            mContext,
             MainActivity::class.java
         )
-        val pendingIntent = PendingIntent.getActivity(context, 0, ii, 0)
+        val pendingIntent = PendingIntent.getActivity(mContext, 0, ii, 0)
 
         val bigText = NotificationCompat.BigTextStyle()
         bigText.bigText("Enter the pin again otherwise the VPN will stop.")
@@ -137,7 +138,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         mBuilder.setAutoCancel(true)
 
         val mNotificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channelId = "Your_channel_id"
@@ -155,11 +156,11 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun keyStoreOperation(timestamp: String, tunnel: ObservableTunnel) {
-        BiometricAuthenticator.authenticate(R.string.biometric_prompt_key, fragment) {
+        BiometricAuthenticator.authenticate(R.string.biometric_prompt_key, mFragment) {
             when (it) {
                 // When we have successful authentication, or when there is no biometric hardware available.
                 is BiometricAuthenticator.Result.Success, is BiometricAuthenticator.Result.HardwareUnavailableOrDisabled -> {
-                    val keyStoreManager = HWKeyStoreManager(context)
+                    val keyStoreManager = HWKeyStoreManager(mContext)
                     for(key in keyStoreManager.getKeyList()) {
                         Log.i(TAG, "key: ${key.label}")
                     }
@@ -169,7 +170,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 }
                 is BiometricAuthenticator.Result.Failure -> {
                     Snackbar.make(
-                        activity.findViewById(android.R.id.content),
+                        mActivity.findViewById(android.R.id.content),
                         it.message,
                         Snackbar.LENGTH_SHORT
                     ).show()
@@ -180,7 +181,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     }
 
     private fun loadNewPSK(tunnel: ObservableTunnel, config: Config, newPSK: Key) {
-        activity.applicationScope.launch {
+        mActivity.applicationScope.launch {
             for((counter, peer) in config.peers.withIndex()) {
                 Log.i(
                     TAG,
@@ -215,7 +216,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     keyStoreOperation(timestamp, tunnel)
                 }else{
-                    Toast.makeText(context, "Android version not high enough for key usage.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(mContext, "Android version not high enough for key usage.", Toast.LENGTH_LONG).show()
                     Log.i(TAG, "Android version not high enough for key usage.")
                 }
             }

@@ -435,7 +435,6 @@ public class HWKeyStoreManager {
     }
 
     // TODO: clean up catch clause
-
     /**
      * Function to perform the AndroidKeyStore operation (AES_ECB or RSA).
      *
@@ -459,19 +458,33 @@ public class HWKeyStoreManager {
 
                 /* Encrypt SHA256(initBytes) with AES_ECB */
                 sha256.update(initBytes);
-                byte[] digestBytes = sha256.digest();
-                return Key.fromBase64(Base64.encodeToString(cipher.doFinal(digestBytes), Base64.DEFAULT));
+                byte[] digest = sha256.digest();
+                StringBuilder strSig = new StringBuilder();
+                for (byte aByte : digest) {
+                    strSig.append(String.format("%02x", aByte));
+                }
+                return Key.fromHex(strSig.toString());
             }else if(keyType == KeyType.RSA) {
                 Signature sig = Signature.getInstance("SHA256WithRSA");
                 sig.initSign(((KeyStore.PrivateKeyEntry) keyStore.getEntry(alias, null)).getPrivateKey());
 
                 /* Sign initBytes with SHA256WithRSA */
                 sig.update(initBytes);
-                return Key.fromBase64(Base64.encodeToString(sig.sign(), Base64.DEFAULT));
+                byte[] signature = sig.sign();
+
+                /* Hash signature*/
+                MessageDigest sha256 = MessageDigest.getInstance("SHA256");
+                sha256.update(signature);
+                byte[] digest = sha256.digest();
+                StringBuilder strSig = new StringBuilder();
+                for (byte aByte : digest) {
+                    strSig.append(String.format("%02x", aByte));
+                }
+                return Key.fromHex(strSig.toString());
             }else{
                 throw new NoSuchAlgorithmException("This function only allows RSA and AES (AESECB)...");
             }
-        } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException | KeyFormatException | UnrecoverableEntryException | SignatureException e) {
+        } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | KeyFormatException | UnrecoverableEntryException | SignatureException e) {
             Log.e(TAG, Log.getStackTraceString(e));
             return null;
         }
@@ -499,15 +512,19 @@ public class HWKeyStoreManager {
             cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(ivBytes));
             Log.i("MAIN_ACTIVITY", "Using IV: " + Base64.encodeToString(cipher.getIV(), Base64.DEFAULT));
 
-            /* Encrypt init with AES_CBC*/
+            /* Encrypt init with AES_CBC */
             byte[] initBytes = init.getBytes("UTF-8");
             MessageDigest sha256 = MessageDigest.getInstance("SHA256");
             sha256.update(initBytes);
             byte[] digestBytes = sha256.digest();
-            byte[] pskBytes = cipher.doFinal(digestBytes);
+            byte[] digest = cipher.doFinal(digestBytes);
 
             /* Return new PSK */
-            return Key.fromBase64(Base64.encodeToString(pskBytes, Base64.DEFAULT));
+            StringBuilder strSig = new StringBuilder();
+            for (byte aByte : digest) {
+                strSig.append(String.format("%02x", aByte));
+            }
+            return Key.fromHex(strSig.toString());
         } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | UnrecoverableKeyException | NoSuchPaddingException | InvalidAlgorithmParameterException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException | KeyFormatException e) {
             Log.e(TAG, Log.getStackTraceString(e));
             return null;
