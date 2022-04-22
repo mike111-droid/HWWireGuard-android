@@ -5,8 +5,8 @@
 
 package com.wireguard.android.hwwireguard
 
-import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -36,7 +36,6 @@ import com.wireguard.crypto.Key
 import com.wireguard.hwwireguard.HWHSMManager
 import com.wireguard.hwwireguard.HWHardwareBackedKey
 import com.wireguard.hwwireguard.HWKeyStoreManager
-import com.wireguard.hwwireguard.HWRatchetManager
 import com.wireguard.hwwireguard.HWTimestamp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -95,31 +94,47 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         }
         val alertDialog: AlertDialog = alertDialogBuilder.create()
         alertDialog.show()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if(!isAppInForeground()) {
+                addNotification()
+            }
+        }
+    }
 
+    fun isAppInForeground(): Boolean {
+        val application = context
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val runningProcessList = activityManager.runningAppProcesses
+        if (runningProcessList != null) {
+            val myApp = runningProcessList.find { it.processName == application.packageName }
+            ActivityManager.getMyMemoryState(myApp)
+            return myApp?.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+        }
+        return false
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    @SuppressLint("UnspecifiedImmutableFlag")
     fun addNotification() {
         Log.i(TAG, "Started addNotification")
         val mBuilder = NotificationCompat.Builder(context, "notify_001")
-        val ii: Intent = Intent(
+        val ii = Intent(
             context,
             MainActivity::class.java
         )
         val pendingIntent = PendingIntent.getActivity(context, 0, ii, 0)
 
         val bigText = NotificationCompat.BigTextStyle()
-        bigText.bigText("verse")
-        bigText.setBigContentTitle("Today's Bible Verse")
-        bigText.setSummaryText("Text in detail")
+        bigText.bigText("Enter the pin again otherwise the VPN will stop.")
+        bigText.setBigContentTitle("Enter pin")
+        bigText.setSummaryText("Enter the pin again otherwise the VPN will stop.")
 
         mBuilder.setContentIntent(pendingIntent)
         mBuilder.setSmallIcon(R.mipmap.ic_launcher_round)
-        mBuilder.setContentTitle("Your Title")
-        mBuilder.setContentText("Your text")
+        mBuilder.setContentTitle("Enter pin")
+        mBuilder.setContentText("Enter the pin again otherwise the VPN will stop.")
         mBuilder.priority = Notification.PRIORITY_MAX
         mBuilder.setStyle(bigText)
+        mBuilder.setAutoCancel(true)
 
         val mNotificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -210,11 +225,4 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
 
         /* Check if successful handshake */
     }
-
-    private fun ratchet(key: Key) : Key {
-        val ratchetManager =
-            HWRatchetManager()
-        return ratchetManager.ratchet(key)
-    }
-
 }
