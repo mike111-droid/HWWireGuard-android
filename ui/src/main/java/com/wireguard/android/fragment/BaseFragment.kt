@@ -93,12 +93,18 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }
 
             /* Custom change begin */
-            if(checked && PreferencesPreferenceDataStore(applicationScope, Application.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
-                Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
-                monitor.startMonitor()
-            } else {
-                Log.i(TAG, "Tunnel state is down, so we stop the Monitor.")
-                monitor.stopMonitor()
+            if(PreferencesPreferenceDataStore(applicationScope, Application.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
+                if(checked) {
+                    Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
+                    monitor.startMonitor()
+                } else {
+                    Log.i(TAG, "Tunnel state is down, so we stop the Monitor.")
+                    monitor.stopMonitor()
+                }
+            }else{
+                val config = tunnel.getConfigAsync()
+                delay(1000)
+                Application.getBackend().addConf(config)
             }
             /* Custom change end */
             setTunnelStateWithPermissionsResult(tunnel, checked)
