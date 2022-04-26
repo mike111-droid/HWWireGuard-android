@@ -27,7 +27,7 @@ import androidx.databinding.ObservableField
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
@@ -87,7 +87,7 @@ class TvMainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = TvActivityBinding.inflate(layoutInflater)
         lifecycleScope.launch {
-            binding.tunnels = Application.getTunnelManager().getTunnels()
+            binding.tunnels = HWApplication.getTunnelManager().getTunnels()
             if (binding.tunnels?.isEmpty() == true)
                 binding.importButton.requestFocus()
             else
@@ -119,7 +119,7 @@ class TvMainActivity : AppCompatActivity() {
                                 Log.e(TAG, message, e)
                             }
                         } else {
-                            if (Application.getBackend() is GoBackend) {
+                            if (HWApplication.getBackend() is GoBackend) {
                                 val intent = GoBackend.VpnService.prepare(binding.root.context)
                                 if (intent != null) {
                                     pendingTunnel = item

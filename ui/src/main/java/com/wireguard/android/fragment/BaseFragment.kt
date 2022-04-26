@@ -4,11 +4,8 @@
  */
 package com.wireguard.android.fragment
 
-import android.app.ActivityManager
 import android.content.Context
-import android.os.Build
 import android.os.Bundle
-import android.service.autofill.Validators.not
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -16,9 +13,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.databinding.DataBindingUtil
 import androidx.databinding.ViewDataBinding
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.activity.BaseActivity
 import com.wireguard.android.activity.BaseActivity.OnSelectedTunnelChangedListener
@@ -31,7 +29,6 @@ import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.applicationScope
-import com.wireguard.hwwireguard.HWKeyStoreManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -53,6 +50,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
     /* Custom change begin */
     private lateinit var monitor: HWMonitor
     override fun onCreate(savedInstanceState: Bundle?) {
+        val activity = activity ?: Log.i(TAG, "ERROR fragmentActivity not found but necessary for isAppinForeground.")
         monitor = HWMonitor(requireContext(), requireActivity(), this)
         super.onCreate(savedInstanceState)
     }
@@ -82,7 +80,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         } ?: return
         val activity = activity ?: return
         activity.lifecycleScope.launch {
-            if (Application.getBackend() is GoBackend) {
+            if (HWApplication.getBackend() is GoBackend) {
                 val intent = GoBackend.VpnService.prepare(activity)
                 if (intent != null) {
                     pendingTunnel = tunnel
@@ -93,7 +91,21 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }
 
             /* Custom change begin */
-            if(PreferencesPreferenceDataStore(applicationScope, Application.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
+            /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if(!monitor.isAppInForeground()) {
+                    monitor.addNotification()
+                }
+                delay(5000)
+                if(!monitor.isAppInForeground()) {
+                    monitor.addNotification()
+                }
+                delay(10000)
+                if(!monitor.isAppInForeground()) {
+                    monitor.addNotification()
+                }
+            }*/
+
+            if(PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
                 if(checked) {
                     Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
                     monitor.startMonitor()
@@ -104,7 +116,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }else{
                 val config = tunnel.getConfigAsync()
                 delay(1000)
-                Application.getBackend().addConf(config)
+                HWApplication.getBackend().addConf(config)
             }
             /* Custom change end */
             setTunnelStateWithPermissionsResult(tunnel, checked)

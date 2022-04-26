@@ -14,7 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.QuickTileService
 import com.wireguard.android.R
 import com.wireguard.android.backend.GoBackend
@@ -27,7 +27,7 @@ class TunnelToggleActivity : AppCompatActivity() {
     private val permissionActivityResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { toggleTunnelWithPermissionsResult() }
 
     private fun toggleTunnelWithPermissionsResult() {
-        val tunnel = Application.getTunnelManager().lastUsedTunnel ?: return
+        val tunnel = HWApplication.getTunnelManager().lastUsedTunnel ?: return
         lifecycleScope.launch {
             try {
                 tunnel.setStateAsync(Tunnel.State.TOGGLE)
@@ -48,7 +48,7 @@ class TunnelToggleActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
-            if (Application.getBackend() is GoBackend) {
+            if (HWApplication.getBackend() is GoBackend) {
                 val intent = GoBackend.VpnService.prepare(this@TunnelToggleActivity)
                 if (intent != null) {
                     permissionActivityResultLauncher.launch(intent)

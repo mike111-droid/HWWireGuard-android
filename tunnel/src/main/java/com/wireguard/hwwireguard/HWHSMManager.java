@@ -8,6 +8,7 @@ package com.wireguard.hwwireguard;
 import android.content.Context;
 import android.util.Log;
 
+import com.wireguard.crypto.KeyFormatException;
 import com.wireguard.hwwireguard.HWHardwareBackedKey.HardwareType;
 import com.wireguard.hwwireguard.HWHardwareBackedKey.KeyType;
 import com.wireguard.crypto.Key;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import androidx.annotation.Nullable;
 import de.cardcontact.opencard.android.swissbit.SBMicroSDCardTerminalFactory;
 import de.cardcontact.opencard.factory.SmartCardHSMCardServiceFactory;
 import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMCardService;
@@ -40,6 +42,7 @@ import opencard.core.terminal.CardTerminalException;
 import opencard.core.terminal.CardTerminalRegistry;
 import opencard.core.terminal.CommandAPDU;
 import opencard.core.terminal.ResponseAPDU;
+import opencard.core.util.OpenCardPropertyLoadingException;
 
 /**
  * TODO: Not all characters are allowed for key labels/alias -> make sure to filter them at UI
@@ -50,23 +53,27 @@ import opencard.core.terminal.ResponseAPDU;
  *      4. Operations to store/load keyList and selectedKeyLabel into file HSMKeys.txt
  */
 public class HWHSMManager {
+    public static final byte[] BYTES = new byte[0];
     private static final String TAG = "WireGuard/HSMManager";
-    private String selectedKeyLabel = "NOTSELECTED";
+    private String selectedKeyLabel = "UNSELECTED";
     private final List<HWHardwareBackedKey> keyList;
     private final Context context;
+
     public HWHSMManager(final Context context) throws IOException {
         this.context = context;
         keyList = new ArrayList<>();
         loadKeys();
     }
 
+    // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
     /**
-     * Function to set which key is selected for operation.
-     * // TODO: Prevent delimiter char '=' from being in Alias (and NOTSELECTED)
+     * Function to set which key is selected for operation. Needs to be called outside of this class (user select).
+     *
+     * @param alias: String with key alias.
      *
      */
-    private void setSelectedKeyLabel() {
-        selectedKeyLabel = "NOTSELECTED";
+    void setSelectedKeyLabel(final String alias) {
+        selectedKeyLabel = alias;
         try{
             storeKeys();
         } catch (final IOException e) {
@@ -102,6 +109,7 @@ public class HWHSMManager {
      *
      */
     private void loadKeys() throws IOException {
+        /* Read file to String line */
         final StringBuilder stringBuilder = new StringBuilder();
         String line;
         final BufferedReader in;
@@ -121,20 +129,25 @@ public class HWHSMManager {
             }
             stringBuilder.append(line);
         }
-        /* Check is list is empty */
+        /* handle lines from HSMKeys.txt file */
+        handleKeyListFileInput(stringBuilder, line, lineCounter);
+        in.close();
+    }
+
+    private void handleKeyListFileInput(final StringBuilder stringBuilder, final String line, final int lineCounter) throws IOException {
         if(lineCounter > 1) {
+            /* List has keys */
             final String[] split = stringBuilder.toString().split("\n");
             for(final String key: split) {
                 keyList.add(parseKey(key));
             }
             assert line != null;
-            selectedKeyLabel = line.split("=")[1];
+            setSelectedKeyLabel(line.split("=")[1]);
         }else{
-            /* List is empty. Make sure selectedKey is NOTSELECTED. */
-            setSelectedKeyLabel();
+            /* List is empty. Make sure selectedKey is UNSELECTED. */
+            setSelectedKeyLabel("UNSELECTED");
             storeKeys();
         }
-        in.close();
     }
 
     /**
@@ -154,7 +167,7 @@ public class HWHSMManager {
 
     /**
      * Function to add key to keyList.
-     * // TODO: Prevent delimiter char '=' from being in Alias (and NOTSELECTED)
+     * // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
      *
      * @param key: Key to be added.
      */
@@ -230,96 +243,120 @@ public class HWHSMManager {
      * @return       : New PSK key.
      */
     public Key hsmOperation(final HWHardwareBackedKey.KeyType keyType, final String pin, final String init, final byte keyID) {
-        Key newPSK = null;
         try {
-            /* Startup */
-            Log.i(TAG, "OCF startup...");
-            SmartCard.startup();
-            Log.i(TAG, "Creating card terminal registry...");
-            final CardTerminalRegistry ctr = CardTerminalRegistry.getRegistry();
-
-            /* Add SwissBit card terminal to registry */
-            final SBMicroSDCardTerminalFactory sbcardf = new SBMicroSDCardTerminalFactory(context);
-            sbcardf.createCardTerminals(ctr, null);
-
-            /* Creating service registry */
-            Log.i(TAG, "Creating card service registry...");
-            final CardServiceRegistry csr = CardServiceRegistry.getRegistry();
-
-            /* Adding card service */
-            Log.i(TAG, "Adding SmartCard-HSM card service...");
-            final CardServiceFactory csf = new SmartCardHSMCardServiceFactory();
-            csr.add(csf);
-
-            Log.i(TAG, "Creating card request...");
-            final CardRequest cr = new CardRequest(CardRequest.ANYCARD, null, SmartCardHSMCardService.class);
-            final SmartCard sc = SmartCard.waitForCard(cr);
-            if (sc == null) {
-                Log.i("SmartCard-HSM", "Could not get smart card...");
-                return null;
-            }
-
-            sc.setAPDUTracer(new StreamingAPDUTracer(new PrintStream(new HWLogCatOutputStream())));
-            Log.i(TAG, "Card found");
-
-            Log.i(TAG, "Trying to create card service...");
-            final SmartCardHSMCardService schsmcs = (SmartCardHSMCardService) sc.getCardService(SmartCardHSMCardService.class, true);
+            /* Startup card and get SmartCardHSMCardService */
+            final SmartCardHSMCardService schsmcs = getSmartCardHSMCardService();
+            if (schsmcs == null) return null;
 
             /* Verify the PIN */
-            Log.i(TAG, "Verifying PIN...");
-            if(!schsmcs.verifyPassword(null, 0, pin.getBytes())) {
-                Log.i(TAG, "PIN is incorrect. More than 3 false pins lead to locked devices!");
-                throw new Exception("Wrong PIN.");
-            }
+            checkPin(pin, schsmcs);
 
             /* init to bytes */
             final byte[] data = init.getBytes();
-            final StringBuilder tmp2 = new StringBuilder();
-            for (final byte aByte : data) {
-                tmp2.append(String.format("%02x", aByte));
-            }
-            Log.i(TAG, "data: " + tmp2);
 
             /* Hashing of data */
-            final MessageDigest sha256 = MessageDigest.getInstance("SHA256");
-            sha256.update(data);
-            final byte[] digest = sha256.digest();
+            final byte[] digest = sha256(data);
             Log.i(TAG, "sha256.digest: " + Arrays.toString(digest));
 
             /* HSM Operation */
-            final byte[] res;
+            byte[] res = BYTES;
             if(keyType == KeyType.AES) {
                 /* AES on HSM */
                 res = hsmOperationAES(schsmcs, digest, keyID);
             }else if(keyType == KeyType.RSA){
                 /* RSA on HSM */
                 res = hsmOperationRSA(schsmcs, digest, keyID);
-            }else{
-                // TODO: Check if exception ends program...
-                throw new NoSuchAlgorithmException("keyType " + keyType + " is not supported on SmartCard-HSM.");
             }
 
             /* Hash result */
-            sha256.update(res);
-            final byte[] psk = sha256.digest();
-            final StringBuilder strSig = new StringBuilder();
-            for (final byte aByte : psk) {
-                strSig.append(String.format("%02x", aByte));
-            }
-            Log.i(TAG, "psk: " + strSig);
-            newPSK = Key.fromHex(strSig.toString());
+            final byte[] psk = sha256(res);
+            return bytesToKey(psk);
         } catch (final Exception e) {
             Log.i(TAG, Log.getStackTraceString(e));
             return null;
         } finally {
             try {
                 SmartCard.shutdown();
-                return newPSK;
             } catch (final Exception e) {
                 Log.i(TAG, Log.getStackTraceString(e));
-                return newPSK;
             }
         }
+    }
+
+    /**
+     * Function transforms byte[] of key in hex to type Key.
+     *
+     * @param bytes: Byte array with key.
+     * @return     : Key.
+     */
+    private static Key bytesToKey(final byte[] bytes) throws KeyFormatException {
+        final StringBuilder strSig = new StringBuilder();
+        for (final byte aByte : bytes) {
+            strSig.append(String.format("%02x", aByte));
+        }
+        Log.i(TAG, "psk: " + strSig);
+        return Key.fromHex(strSig.toString());
+    }
+
+    /**
+     * Function perform sha256 operation on data.
+     *
+     * @param data: Byte array for input.
+     * @return    : Byte array with output.
+     */
+    private static byte[] sha256(final byte[] data) throws NoSuchAlgorithmException {
+        final MessageDigest sha256 = MessageDigest.getInstance("SHA256");
+        sha256.update(data);
+        return sha256.digest();
+    }
+
+    /**
+     * Function to check pin of SmartCard-HSM.
+     *
+     * @param pin    : String with pin for SmartCard-HSM.
+     * @param schsmcs: SmartCardHSMCardService for operations on SmartCard-HSM.
+     */
+    private static void checkPin(final String pin, final SmartCardHSMCardService schsmcs) throws Exception {
+        Log.i(TAG, "Verifying PIN...");
+        if(!schsmcs.verifyPassword(null, 0, pin.getBytes())) {
+            Log.i(TAG, "PIN is incorrect. More than 3 false pins lead to locked devices!");
+            throw new Exception("Wrong PIN.");
+        }
+    }
+
+    @Nullable private SmartCardHSMCardService getSmartCardHSMCardService() throws OpenCardPropertyLoadingException, ClassNotFoundException, CardServiceException, CardTerminalException {
+        /* Startup */
+        Log.i(TAG, "OCF startup...");
+        SmartCard.startup();
+        Log.i(TAG, "Creating card terminal registry...");
+        final CardTerminalRegistry ctr = CardTerminalRegistry.getRegistry();
+
+        /* Add SwissBit card terminal to registry */
+        final SBMicroSDCardTerminalFactory sbcardf = new SBMicroSDCardTerminalFactory(context);
+        sbcardf.createCardTerminals(ctr, null);
+
+        /* Creating service registry */
+        Log.i(TAG, "Creating card service registry...");
+        final CardServiceRegistry csr = CardServiceRegistry.getRegistry();
+
+        /* Adding card service */
+        Log.i(TAG, "Adding SmartCard-HSM card service...");
+        final CardServiceFactory csf = new SmartCardHSMCardServiceFactory();
+        csr.add(csf);
+
+        Log.i(TAG, "Creating card request...");
+        final CardRequest cr = new CardRequest(CardRequest.ANYCARD, null, SmartCardHSMCardService.class);
+        final SmartCard sc = SmartCard.waitForCard(cr);
+        if (sc == null) {
+            Log.i("SmartCard-HSM", "Could not get smart card...");
+            return null;
+        }
+
+        sc.setAPDUTracer(new StreamingAPDUTracer(new PrintStream(new HWLogCatOutputStream())));
+        Log.i(TAG, "Card found");
+
+        Log.i(TAG, "Trying to create card service...");
+        return (SmartCardHSMCardService) sc.getCardService(SmartCardHSMCardService.class, true);
     }
 
     /**

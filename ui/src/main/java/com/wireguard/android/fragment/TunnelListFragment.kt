@@ -24,7 +24,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.zxing.qrcode.QRCodeReader
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.activity.TunnelCreatorActivity
 import com.wireguard.android.databinding.ObservableKeyedRecyclerViewAdapter.RowConfigurationHandler
@@ -132,7 +132,7 @@ class TunnelListFragment : BaseFragment() {
     override fun onSelectedTunnelChanged(oldTunnel: ObservableTunnel?, newTunnel: ObservableTunnel?) {
         binding ?: return
         lifecycleScope.launch {
-            val tunnels = Application.getTunnelManager().getTunnels()
+            val tunnels = HWApplication.getTunnelManager().getTunnels()
             if (newTunnel != null) viewForTunnel(newTunnel, tunnels)?.setSingleSelected(true)
             if (oldTunnel != null) viewForTunnel(oldTunnel, tunnels)?.setSingleSelected(false)
         }
@@ -140,7 +140,7 @@ class TunnelListFragment : BaseFragment() {
 
     private fun onTunnelDeletionFinished(count: Int, throwable: Throwable?) {
         val message: String
-        val ctx = activity ?: Application.get()
+        val ctx = activity ?: HWApplication.get()
         if (throwable == null) {
             message = ctx.resources.getQuantityString(R.plurals.delete_success, count, count)
         } else {
@@ -155,7 +155,7 @@ class TunnelListFragment : BaseFragment() {
         super.onViewStateRestored(savedInstanceState)
         binding ?: return
         binding!!.fragment = this
-        lifecycleScope.launch { binding!!.tunnels = Application.getTunnelManager().getTunnels() }
+        lifecycleScope.launch { binding!!.tunnels = HWApplication.getTunnelManager().getTunnels() }
         binding!!.rowConfigurationHandler = object : RowConfigurationHandler<TunnelListItemBinding, ObservableTunnel> {
             override fun onConfigureRow(binding: TunnelListItemBinding, item: ObservableTunnel, position: Int) {
                 binding.fragment = this@TunnelListFragment
@@ -185,7 +185,7 @@ class TunnelListFragment : BaseFragment() {
                     .setAnchorView(binding.createFab)
                     .show()
         else
-            Toast.makeText(activity ?: Application.get(), message, Toast.LENGTH_SHORT).show()
+            Toast.makeText(activity ?: HWApplication.get(), message, Toast.LENGTH_SHORT).show()
     }
 
     private fun viewForTunnel(tunnel: ObservableTunnel, tunnels: List<*>): MultiselectableRelativeLayout? {
@@ -212,7 +212,7 @@ class TunnelListFragment : BaseFragment() {
                     }
                     activity.lifecycleScope.launch {
                         try {
-                            val tunnels = Application.getTunnelManager().getTunnels()
+                            val tunnels = HWApplication.getTunnelManager().getTunnels()
                             val tunnelsToDelete = ArrayList<ObservableTunnel>()
                             for (position in copyCheckedItems) tunnelsToDelete.add(tunnels[position])
                             val futures = tunnelsToDelete.map { async(SupervisorJob()) { it.deleteAsync() } }
@@ -227,7 +227,7 @@ class TunnelListFragment : BaseFragment() {
                 }
                 R.id.menu_action_select_all -> {
                     lifecycleScope.launch {
-                        val tunnels = Application.getTunnelManager().getTunnels()
+                        val tunnels = HWApplication.getTunnelManager().getTunnels()
                         for (i in 0 until tunnels.size) {
                             setItemChecked(i, true)
                         }

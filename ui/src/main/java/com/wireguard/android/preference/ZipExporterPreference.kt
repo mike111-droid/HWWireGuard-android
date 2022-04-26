@@ -9,7 +9,7 @@ import android.util.AttributeSet
 import android.util.Log
 import androidx.preference.Preference
 import com.google.android.material.snackbar.Snackbar
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.util.AdminKnobs
 import com.wireguard.android.util.BiometricAuthenticator
@@ -36,7 +36,7 @@ class ZipExporterPreference(context: Context, attrs: AttributeSet?) : Preference
 
     private fun exportZip() {
         lifecycleScope.launch {
-            val tunnels = Application.getTunnelManager().getTunnels()
+            val tunnels = HWApplication.getTunnelManager().getTunnels()
             try {
                 exportedFilePath = withContext(Dispatchers.IO) {
                     val configs = tunnels.map { async(SupervisorJob()) { it.getConfigAsync() } }.awaitAll()

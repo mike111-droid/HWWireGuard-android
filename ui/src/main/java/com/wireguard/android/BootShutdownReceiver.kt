@@ -15,9 +15,9 @@ import kotlinx.coroutines.launch
 class BootShutdownReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         applicationScope.launch {
-            if (Application.getBackend() !is WgQuickBackend) return@launch
+            if (HWApplication.getBackend() !is WgQuickBackend) return@launch
             val action = intent.action ?: return@launch
-            val tunnelManager = Application.getTunnelManager()
+            val tunnelManager = HWApplication.getTunnelManager()
             if (Intent.ACTION_BOOT_COMPLETED == action) {
                 Log.i(TAG, "Broadcast receiver restoring state (boot)")
                 tunnelManager.restoreState(false)

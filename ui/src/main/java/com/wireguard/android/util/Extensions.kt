@@ -10,7 +10,7 @@ import android.util.TypedValue
 import androidx.annotation.AttrRes
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.activity.SettingsActivity
 import kotlinx.coroutines.CoroutineScope
 
@@ -21,7 +21,7 @@ fun Context.resolveAttribute(@AttrRes attrRes: Int): Int {
 }
 
 val Any.applicationScope: CoroutineScope
-    get() = Application.getCoroutineScope()
+    get() = HWApplication.getCoroutineScope()
 
 val Preference.activity: SettingsActivity
     get() = context as? SettingsActivity

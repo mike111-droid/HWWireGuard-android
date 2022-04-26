@@ -20,7 +20,7 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelEditorFragmentBinding
@@ -45,7 +45,7 @@ class TunnelEditorFragment : BaseFragment() {
     }
 
     private fun onConfigSaved(savedTunnel: Tunnel, throwable: Throwable?) {
-        val ctx = activity ?: Application.get()
+        val ctx = activity ?: HWApplication.get()
         if (throwable == null) {
             val message = ctx.getString(R.string.config_save_success, savedTunnel.name)
             Log.d(TAG, message)
@@ -123,7 +123,7 @@ class TunnelEditorFragment : BaseFragment() {
                 when {
                     tunnel == null -> {
                         Log.d(TAG, "Attempting to create new tunnel " + binding!!.name)
-                        val manager = Application.getTunnelManager()
+                        val manager = HWApplication.getTunnelManager()
                         try {
                             onTunnelCreated(manager.create(binding!!.name!!, newConfig), null)
                         } catch (e: Throwable) {
@@ -213,7 +213,7 @@ class TunnelEditorFragment : BaseFragment() {
     }
 
     private fun onTunnelCreated(newTunnel: ObservableTunnel?, throwable: Throwable?) {
-        val ctx = activity ?: Application.get()
+        val ctx = activity ?: HWApplication.get()
         if (throwable == null) {
             tunnel = newTunnel
             val message = ctx.getString(R.string.tunnel_create_success, tunnel!!.name)
@@ -234,7 +234,7 @@ class TunnelEditorFragment : BaseFragment() {
 
     private suspend fun onTunnelRenamed(renamedTunnel: ObservableTunnel, newConfig: Config,
                                         throwable: Throwable?) {
-        val ctx = activity ?: Application.get()
+        val ctx = activity ?: HWApplication.get()
         if (throwable == null) {
             val message = ctx.getString(R.string.tunnel_rename_success, renamedTunnel.name)
             Log.d(TAG, message)

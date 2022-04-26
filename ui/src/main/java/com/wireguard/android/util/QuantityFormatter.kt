@@ -5,12 +5,12 @@
 
 package com.wireguard.android.util
 
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 
 object QuantityFormatter {
     fun formatBytes(bytes: Long): String {
-        val context = Application.get().applicationContext
+        val context = HWApplication.get().applicationContext
         return when {
             bytes < 1024 -> context.getString(R.string.transfer_bytes, bytes)
             bytes < 1024 * 1024 -> context.getString(R.string.transfer_kibibytes, bytes / 1024.0)

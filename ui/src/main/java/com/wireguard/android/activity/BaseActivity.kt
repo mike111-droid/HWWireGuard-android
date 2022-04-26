@@ -8,7 +8,7 @@ import android.os.Bundle
 import androidx.databinding.CallbackRegistry
 import androidx.databinding.CallbackRegistry.NotifierCallback
 import androidx.lifecycle.lifecycleScope
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.model.ObservableTunnel
 
 /**
@@ -25,6 +25,19 @@ abstract class BaseActivity : ThemeChangeAwareActivity() {
             selectionChangeRegistry.notifyCallbacks(oldTunnel, 0, value)
         }
 
+
+    /* Custom change begin */
+    override fun onResume() {
+        super.onResume()
+        HWApplication.activityResumed()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        HWApplication.activityPaused()
+    }
+    /* Custom change end */
+
     fun addOnSelectedTunnelChangedListener(listener: OnSelectedTunnelChangedListener) {
         selectionChangeRegistry.add(listener)
     }
@@ -37,7 +50,7 @@ abstract class BaseActivity : ThemeChangeAwareActivity() {
             else -> null
         }
         if (savedTunnelName != null)
-            lifecycleScope.launchWhenCreated { selectedTunnel = Application.getTunnelManager().getTunnels()[savedTunnelName] }
+            lifecycleScope.launchWhenCreated { selectedTunnel = HWApplication.getTunnelManager().getTunnels()[savedTunnelName] }
 
         // The selected tunnel must be set before the superclass method recreates fragments.
         super.onCreate(savedInstanceState)

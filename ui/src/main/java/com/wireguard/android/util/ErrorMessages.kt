@@ -8,7 +8,7 @@ import android.content.res.Resources
 import android.os.RemoteException
 import com.google.zxing.ChecksumException
 import com.google.zxing.NotFoundException
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.backend.BackendException
 import com.wireguard.android.util.RootShell.RootShellException
@@ -66,7 +66,7 @@ object ErrorMessages {
     )
 
     operator fun get(throwable: Throwable?): String {
-        val resources = Application.get().resources
+        val resources = HWApplication.get().resources
         if (throwable == null) return resources.getString(R.string.unknown_error)
         val rootCause = rootCause(throwable)
         return when {

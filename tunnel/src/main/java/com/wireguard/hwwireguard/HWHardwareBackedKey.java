@@ -23,8 +23,6 @@ public class HWHardwareBackedKey {
     }
 
     public enum KeyType {
-        AESECB,
-        AESCBC,
         AES,
         RSA
     }

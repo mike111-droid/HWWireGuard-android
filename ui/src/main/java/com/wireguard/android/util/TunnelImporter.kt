@@ -10,7 +10,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.fragment.app.FragmentManager
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.fragment.ConfigNamingDialogFragment
 import com.wireguard.android.model.ObservableTunnel
@@ -30,7 +30,7 @@ import java.util.zip.ZipInputStream
 
 object TunnelImporter {
     suspend fun importTunnel(contentResolver: ContentResolver, uri: Uri, messageCallback: (CharSequence) -> Unit) = withContext(Dispatchers.IO) {
-        val context = Application.get().applicationContext
+        val context = HWApplication.get().applicationContext
         val futureTunnels = ArrayList<Deferred<ObservableTunnel>>()
         val throwables = ArrayList<Throwable>()
         try {
@@ -82,12 +82,12 @@ object TunnelImporter {
                             null
                         }?.let {
                             val nameCopy = name
-                            futureTunnels.add(async(SupervisorJob()) { Application.getTunnelManager().create(nameCopy, it) })
+                            futureTunnels.add(async(SupervisorJob()) { HWApplication.getTunnelManager().create(nameCopy, it) })
                         }
                     }
                 }
             } else {
-                futureTunnels.add(async(SupervisorJob()) { Application.getTunnelManager().create(name, Config.parse(contentResolver.openInputStream(uri)!!)) })
+                futureTunnels.add(async(SupervisorJob()) { HWApplication.getTunnelManager().create(name, Config.parse(contentResolver.openInputStream(uri)!!)) })
             }
 
             if (futureTunnels.isEmpty()) {
@@ -124,7 +124,7 @@ object TunnelImporter {
     }
 
     private fun onTunnelImportFinished(tunnels: List<ObservableTunnel>, throwables: Collection<Throwable>, messageCallback: (CharSequence) -> Unit) {
-        val context = Application.get().applicationContext
+        val context = HWApplication.get().applicationContext
         var message = ""
         for (throwable in throwables) {
             val error = ErrorMessages[throwable]

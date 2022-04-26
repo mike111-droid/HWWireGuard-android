@@ -7,7 +7,7 @@ package com.wireguard.android.preference
 import android.content.Context
 import android.util.AttributeSet
 import androidx.preference.Preference
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.util.ToolsInstaller
 import com.wireguard.android.util.lifecycleScope
@@ -29,7 +29,7 @@ class ToolsInstallerPreference(context: Context, attrs: AttributeSet?) : Prefere
         super.onAttached()
         lifecycleScope.launch {
             try {
-                val state = withContext(Dispatchers.IO) { Application.getToolsInstaller().areInstalled() }
+                val state = withContext(Dispatchers.IO) { HWApplication.getToolsInstaller().areInstalled() }
                 when {
                     state == ToolsInstaller.ERROR -> setState(State.INITIAL)
                     state and ToolsInstaller.YES == ToolsInstaller.YES -> setState(State.ALREADY)
@@ -47,7 +47,7 @@ class ToolsInstallerPreference(context: Context, attrs: AttributeSet?) : Prefere
         setState(State.WORKING)
         lifecycleScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) { Application.getToolsInstaller().install() }
+                val result = withContext(Dispatchers.IO) { HWApplication.getToolsInstaller().install() }
                 when {
                     result and (ToolsInstaller.YES or ToolsInstaller.MAGISK) == ToolsInstaller.YES or ToolsInstaller.MAGISK -> setState(State.SUCCESS_MAGISK)
                     result and (ToolsInstaller.YES or ToolsInstaller.SYSTEM) == ToolsInstaller.YES or ToolsInstaller.SYSTEM -> setState(State.SUCCESS_SYSTEM)

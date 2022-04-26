@@ -7,7 +7,6 @@ package com.wireguard.android.hwwireguard
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -25,7 +24,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationCompat
 import androidx.fragment.app.Fragment
 import com.google.android.material.snackbar.Snackbar
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.model.ObservableTunnel
@@ -61,7 +60,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         run.set(true)
         mActivity.applicationScope.launch {
             while(run.get()) {
-                for(tunnel in Application.getTunnelManager().getTunnels()) {
+                for(tunnel in HWApplication.getTunnelManager().getTunnels()) {
                     monitor(tunnel)
                 }
                 delay(3000)
@@ -103,14 +102,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     }
 
     private fun isAppInForeground(): Boolean {
-        val activityManager = mContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        val runningProcessList = activityManager.runningAppProcesses
-        if (runningProcessList != null) {
-            val myApp = runningProcessList.find { it.processName == mContext.packageName }
-            ActivityManager.getMyMemoryState(myApp)
-            return myApp?.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
-        }
-        return false
+        return HWApplication.isActivityVisible()
     }
 
     @SuppressLint("UnspecifiedImmutableFlag")
@@ -118,11 +110,14 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     fun addNotification() {
         Log.i(TAG, "Started addNotification")
         val mBuilder = NotificationCompat.Builder(mContext, "notify_001")
-        val ii = Intent(
-            mContext,
-            MainActivity::class.java
+        val intent = Intent(mContext, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK;
+        intent.action = Intent.ACTION_MAIN;
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        val pendingIntent = PendingIntent.getActivity(
+            mContext, 0,
+            intent, PendingIntent.FLAG_UPDATE_CURRENT
         )
-        val pendingIntent = PendingIntent.getActivity(mContext, 0, ii, 0)
 
         val bigText = NotificationCompat.BigTextStyle()
         bigText.bigText("Enter the pin again otherwise the VPN will stop.")
@@ -136,6 +131,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         mBuilder.priority = Notification.PRIORITY_MAX
         mBuilder.setStyle(bigText)
         mBuilder.setAutoCancel(true)
+        mBuilder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
         val mNotificationManager =
             mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -185,13 +181,13 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             for((counter, peer) in config.peers.withIndex()) {
                 Log.i(
                     TAG,
-                    "psk before: " + Application.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
+                    "psk before: " + HWApplication.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
                 )
                 config.peers[counter].setPreSharedKey(newPSK)
-                Application.getBackend().addConf(config)
+                HWApplication.getBackend().addConf(config)
                 Log.i(
                     TAG,
-                    "psk after: " + Application.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
+                    "psk after: " + HWApplication.getBackend().getStatistics(tunnel).presharedKey[peer.publicKey]!!.toBase64()
                 )
             }
         }
@@ -205,7 +201,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             /* PSK needs to be reloaded with new timestamp */
             val pref = PreferencesPreferenceDataStore(
                 applicationScope,
-                Application.getPreferencesDataStore()
+                HWApplication.getPreferencesDataStore()
             )
             val hwBackend = pref.getString("dropdown", "none")
             if (hwBackend == "SmartCardHSM") {

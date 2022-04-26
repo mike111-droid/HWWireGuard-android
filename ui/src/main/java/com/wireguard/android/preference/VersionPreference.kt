@@ -10,7 +10,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.AttributeSet
 import androidx.preference.Preference
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.BuildConfig
 import com.wireguard.android.R
 import com.wireguard.android.backend.Backend
@@ -47,7 +47,7 @@ class VersionPreference(context: Context, attrs: AttributeSet?) : Preference(con
 
     init {
         lifecycleScope.launch {
-            val backend = Application.getBackend()
+            val backend = HWApplication.getBackend()
             versionSummary = getContext().getString(R.string.version_summary_checking, getBackendPrettyName(context, backend).lowercase())
             notifyChanged()
             versionSummary = try {

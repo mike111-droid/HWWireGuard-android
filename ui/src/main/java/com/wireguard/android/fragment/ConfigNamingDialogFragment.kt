@@ -13,7 +13,7 @@ import androidx.core.content.getSystemService
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.databinding.ConfigNamingDialogFragmentBinding
 import com.wireguard.config.BadConfigException
@@ -34,7 +34,7 @@ class ConfigNamingDialogFragment : DialogFragment() {
         val name = binding.tunnelNameText.text.toString()
         activity.lifecycleScope.launch {
             try {
-                Application.getTunnelManager().create(name, config)
+                HWApplication.getTunnelManager().create(name, config)
                 dismiss()
             } catch (e: Throwable) {
                 binding.tunnelNameTextLayout.error = e.message

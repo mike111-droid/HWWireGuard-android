@@ -40,7 +40,7 @@
     </queries>
 
     <application
-        android:name=".Application"
+        android:name=".HWApplication"
         android:allowBackup="false"
         android:banner="@mipmap/banner"
         android:icon="@mipmap/ic_launcher"
@@ -48,12 +48,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity
-            android:name=".activity.KeyEditActivity"
-            android:exported="false" />
-        <activity
-            android:name=".activity.KeyOptionActivity"
-            android:exported="false" />
         <activity
             android:name=".activity.TunnelToggleActivity"
             android:excludeFromRecents="true"

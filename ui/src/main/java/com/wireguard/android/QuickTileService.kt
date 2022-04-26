@@ -80,7 +80,7 @@ class QuickTileService : TileService() {
             iconOff = iconOn
             return
         }
-        val icon = SlashDrawable(resources.getDrawable(R.drawable.ic_tile, Application.get().theme))
+        val icon = SlashDrawable(resources.getDrawable(R.drawable.ic_tile, HWApplication.get().theme))
         icon.setAnimationEnabled(false) /* Unfortunately we can't have animations, since Icons are marshaled. */
         icon.setSlashed(false)
         var b = Bitmap.createBitmap(icon.intrinsicWidth, icon.intrinsicHeight, Bitmap.Config.ARGB_8888)
@@ -99,19 +99,19 @@ class QuickTileService : TileService() {
     }
 
     override fun onStartListening() {
-        Application.getTunnelManager().addOnPropertyChangedCallback(onTunnelChangedCallback)
+        HWApplication.getTunnelManager().addOnPropertyChangedCallback(onTunnelChangedCallback)
         if (tunnel != null) tunnel!!.addOnPropertyChangedCallback(onStateChangedCallback)
         updateTile()
     }
 
     override fun onStopListening() {
         if (tunnel != null) tunnel!!.removeOnPropertyChangedCallback(onStateChangedCallback)
-        Application.getTunnelManager().removeOnPropertyChangedCallback(onTunnelChangedCallback)
+        HWApplication.getTunnelManager().removeOnPropertyChangedCallback(onTunnelChangedCallback)
     }
 
     private fun updateTile() {
         // Update the tunnel.
-        val newTunnel = Application.getTunnelManager().lastUsedTunnel
+        val newTunnel = HWApplication.getTunnelManager().lastUsedTunnel
         if (newTunnel != tunnel) {
             if (tunnel != null) tunnel!!.removeOnPropertyChangedCallback(onStateChangedCallback)
             tunnel = newTunnel

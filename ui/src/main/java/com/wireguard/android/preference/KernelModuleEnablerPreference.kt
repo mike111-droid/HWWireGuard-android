@@ -10,7 +10,7 @@ import android.util.AttributeSet
 import android.util.Log
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.activity.SettingsActivity
 import com.wireguard.android.backend.Tunnel
@@ -32,7 +32,7 @@ class KernelModuleEnablerPreference(context: Context, attrs: AttributeSet?) : Pr
     init {
         isVisible = false
         lifecycleScope.launch {
-            setState(if (Application.getBackend() is WgQuickBackend) State.ENABLED else State.DISABLED)
+            setState(if (HWApplication.getBackend() is WgQuickBackend) State.ENABLED else State.DISABLED)
         }
     }
 
@@ -49,7 +49,7 @@ class KernelModuleEnablerPreference(context: Context, attrs: AttributeSet?) : Pr
                 setState(State.DISABLING)
                 UserKnobs.setEnableKernelModule(false)
             }
-            val observableTunnels = Application.getTunnelManager().getTunnels()
+            val observableTunnels = HWApplication.getTunnelManager().getTunnels()
             val downings = observableTunnels.map { async(SupervisorJob()) { it.setStateAsync(Tunnel.State.DOWN) } }
             try {
                 downings.awaitAll()
@@ -57,7 +57,7 @@ class KernelModuleEnablerPreference(context: Context, attrs: AttributeSet?) : Pr
                     val restartIntent = Intent(context, SettingsActivity::class.java)
                     restartIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     restartIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    Application.get().startActivity(restartIntent)
+                    HWApplication.get().startActivity(restartIntent)
                     exitProcess(0)
                 }
             } catch (e: Throwable) {

@@ -11,9 +11,8 @@ import android.view.MenuItem
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
-import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
-import com.wireguard.android.Application
+import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.backend.WgQuickBackend
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
@@ -47,7 +46,7 @@ class SettingsActivity : ThemeChangeAwareActivity() {
 
     class SettingsFragment : PreferenceFragmentCompat() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, key: String?) {
-            preferenceManager.preferenceDataStore = PreferencesPreferenceDataStore(lifecycleScope, Application.getPreferencesDataStore())
+            preferenceManager.preferenceDataStore = PreferencesPreferenceDataStore(lifecycleScope, HWApplication.getPreferencesDataStore())
             addPreferencesFromResource(R.xml.preferences)
             //preferenceScreen.initialExpandedChildrenCount = 4
             preferenceScreen.initialExpandedChildrenCount = 6
@@ -71,7 +70,7 @@ class SettingsActivity : ThemeChangeAwareActivity() {
             ).filterNotNull()
             wgQuickOnlyPrefs.forEach { it.isVisible = false }
             lifecycleScope.launch {
-                if (Application.getBackend() is WgQuickBackend) {
+                if (HWApplication.getBackend() is WgQuickBackend) {
                     ++preferenceScreen.initialExpandedChildrenCount
                     wgQuickOnlyPrefs.forEach { it.isVisible = true }
                 } else {
@@ -91,9 +90,9 @@ class SettingsActivity : ThemeChangeAwareActivity() {
             val kernelModuleEnabler = preferenceManager.findPreference<Preference>("kernel_module_enabler")
             if (WgQuickBackend.hasKernelSupport()) {
                 lifecycleScope.launch {
-                    if (Application.getBackend() !is WgQuickBackend) {
+                    if (HWApplication.getBackend() !is WgQuickBackend) {
                         try {
-                            withContext(Dispatchers.IO) { Application.getRootShell().start() }
+                            withContext(Dispatchers.IO) { HWApplication.getRootShell().start() }
                         } catch (_: Throwable) {
                             kernelModuleEnabler?.parent?.removePreference(kernelModuleEnabler)
                         }

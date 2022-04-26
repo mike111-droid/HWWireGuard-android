@@ -12,9 +12,9 @@ import android.util.Log
 import android.widget.Toast
 import androidx.databinding.BaseObservable
 import androidx.databinding.Bindable
-import com.wireguard.android.Application.Companion.get
-import com.wireguard.android.Application.Companion.getBackend
-import com.wireguard.android.Application.Companion.getTunnelManager
+import com.wireguard.android.HWApplication.Companion.get
+import com.wireguard.android.HWApplication.Companion.getBackend
+import com.wireguard.android.HWApplication.Companion.getTunnelManager
 import com.wireguard.android.BR
 import com.wireguard.android.R
 import com.wireguard.android.backend.Statistics

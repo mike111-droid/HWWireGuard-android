@@ -38,7 +38,7 @@ import java.lang.ref.WeakReference
 import java.util.Locale
 
 
-class Application : android.app.Application() {
+class HWApplication : android.app.Application() {
     private val futureBackend = CompletableDeferred<Backend>()
     private val coroutineScope = CoroutineScope(Job() + Dispatchers.Main.immediate)
     private var backend: Backend? = null
@@ -120,10 +120,23 @@ class Application : android.app.Application() {
     companion object {
         val USER_AGENT = String.format(Locale.ENGLISH, "WireGuard/%s (Android %d; %s; %s; %s %s; %s)", BuildConfig.VERSION_NAME, Build.VERSION.SDK_INT, if (Build.SUPPORTED_ABIS.isNotEmpty()) Build.SUPPORTED_ABIS[0] else "unknown ABI", Build.BOARD, Build.MANUFACTURER, Build.MODEL, Build.FINGERPRINT)
         private const val TAG = "WireGuard/Application"
-        private lateinit var weakSelf: WeakReference<Application>
+        private lateinit var weakSelf: WeakReference<HWApplication>
+
+        /* Custom change begin */
+        fun isActivityVisible(): Boolean {
+            return activityVisible
+        }
+        fun activityResumed() {
+            activityVisible = true
+        }
+        fun activityPaused() {
+            activityVisible = false
+        }
+        private var activityVisible = false
+        /* Custom change end */
 
         @JvmStatic
-        fun get(): Application {
+        fun get(): HWApplication {
             return weakSelf.get()!!
         }
 
