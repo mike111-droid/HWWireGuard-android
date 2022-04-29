@@ -6,12 +6,19 @@
 package com.wireguard.hwwireguard;
 
 import android.annotation.SuppressLint;
+
+import android.app.Activity;
 import android.content.Context;
+import android.hardware.biometrics.BiometricManager.Authenticators;
+import android.hardware.biometrics.BiometricPrompt;
+import android.hardware.biometrics.BiometricPrompt.AuthenticationCallback;
+import android.hardware.biometrics.BiometricPrompt.AuthenticationResult;
 import android.os.Environment;
 import android.security.keystore.KeyProperties;
 import android.security.keystore.KeyProtection;
 import android.util.Base64;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.wireguard.crypto.Key;
 import com.wireguard.crypto.KeyFormatException;
@@ -48,13 +55,17 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Observable;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
 
 /**
  * TODO: Not all characters are allowed for key labels/alias -> make sure to filter them at UI
@@ -179,6 +190,16 @@ public class HWKeyStoreManager {
      * @return     : True for success. False for failure.
      */
     public boolean deleteKey(final String alias) {
+        /* Handle KeyStore */
+        try {
+            final KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+            keyStore.deleteEntry(alias);
+        } catch (final KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException e) {
+            Log.e(TAG, Log.getStackTraceString(e));
+            return false;
+        }
+
         /* Handle keyList */
         final HWHardwareBackedKey key = getKeyFromAlias(alias);
         if(key != null) {
@@ -189,19 +210,9 @@ public class HWKeyStoreManager {
         }
         try {
             storeKeys();
+            return true;
         } catch (final IOException e) {
             Log.i(TAG, "Failed to store updated keyList into KeyStoreKeys.txt file.");
-            Log.e(TAG, Log.getStackTraceString(e));
-            return false;
-        }
-
-        /* Handle KeyStore */
-        try {
-            final KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
-            keyStore.load(null);
-            keyStore.deleteEntry(alias);
-            return true;
-        } catch (final KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException e) {
             Log.e(TAG, Log.getStackTraceString(e));
             return false;
         }
@@ -382,6 +393,7 @@ public class HWKeyStoreManager {
                         .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
+                        .setUserAuthenticationValidityDurationSeconds(10)
                         .build());
     }
 
@@ -389,7 +401,7 @@ public class HWKeyStoreManager {
     /**
      * Function to perform the AndroidKeyStore operation (AES_ECB or RSA).
      *
-     * @param keyType: Allowed AES or RSA. AES leads to AES_ECB.
+     * @param keyType : Allowed AES or RSA. AES leads to AES_ECB.
      * @param alias  : Alias of key to use.
      * @param init   : Input to sign or encrypt.
      * @return       : Key for newPSK.
@@ -407,7 +419,7 @@ public class HWKeyStoreManager {
             }else{
                 return null;
             }
-        } catch (final KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | KeyFormatException | UnrecoverableEntryException | SignatureException e) {
+        } catch (final KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | KeyFormatException | IllegalBlockSizeException | BadPaddingException | UnrecoverableEntryException | SignatureException e) {
             Log.e(TAG, Log.getStackTraceString(e));
             return null;
         }
@@ -419,31 +431,44 @@ public class HWKeyStoreManager {
 
         /* Sign initBytes with SHA256WithRSA */
         sig.update(initBytes);
-        final byte[] signature = sig.sign();
+        byte[] signature = sig.sign();
+        return bytesToKey(sha256(signature));
+    }
 
-        /* Hash signature*/
-        final MessageDigest sha256 = MessageDigest.getInstance("SHA256");
-        sha256.update(signature);
-        final byte[] digest = sha256.digest();
+    // TODO: Encrypt not yet implemented
+    @NonNull private Key aesOperation(final String alias, final KeyStore keyStore, final byte[] initBytes) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, KeyStoreException, UnrecoverableKeyException, KeyFormatException, IllegalBlockSizeException, BadPaddingException {
+        @SuppressLint("GetInstance") final Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, keyStore.getKey(alias, null));
+        byte[] digest = sha256(initBytes);
+
+        /* Encrypt with AES */
+        return bytesToKey(sha256(cipher.doFinal(digest)));
+    }
+
+    /**
+     * Function transforms byte[] of key in hex to type Key.
+     *
+     * @param bytes: Byte array with key.
+     * @return     : Key.
+     */
+    public static Key bytesToKey(final byte[] bytes) throws KeyFormatException {
         final StringBuilder strSig = new StringBuilder();
-        for (final byte aByte : digest) {
+        for (final byte aByte : bytes) {
             strSig.append(String.format("%02x", aByte));
         }
+        Log.i(TAG, "psk: " + strSig);
         return Key.fromHex(strSig.toString());
     }
 
-    @NonNull private Key aesOperation(final String alias, final KeyStore keyStore, final byte[] initBytes) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, KeyStoreException, UnrecoverableKeyException, KeyFormatException {
-        @SuppressLint("GetInstance") final Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
-        cipher.init(Cipher.ENCRYPT_MODE, keyStore.getKey(alias, null));
+    /**
+     * Function perform sha256 operation on data.
+     *
+     * @param data: Byte array for input.
+     * @return    : Byte array with output.
+     */
+    public static byte[] sha256(final byte[] data) throws NoSuchAlgorithmException {
         final MessageDigest sha256 = MessageDigest.getInstance("SHA256");
-
-        /* Encrypt SHA256(initBytes) with AES_ECB */
-        sha256.update(initBytes);
-        final byte[] digest = sha256.digest();
-        final StringBuilder strSig = new StringBuilder();
-        for (final byte aByte : digest) {
-            strSig.append(String.format("%02x", aByte));
-        }
-        return Key.fromHex(strSig.toString());
+        sha256.update(data);
+        return sha256.digest();
     }
 }

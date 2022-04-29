@@ -4,6 +4,7 @@
  */
 package com.wireguard.android.fragment
 
+import android.app.NotificationManager
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
@@ -13,7 +14,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.databinding.DataBindingUtil
 import androidx.databinding.ViewDataBinding
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
 import com.wireguard.android.HWApplication
@@ -25,10 +25,12 @@ import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.databinding.TunnelListItemBinding
 import com.wireguard.android.hwwireguard.HWMonitor
+import com.wireguard.android.hwwireguard.util.HWBiometricAuthenticator
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.applicationScope
+import com.wireguard.hwwireguard.HWKeyStoreManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -48,11 +50,22 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         pendingTunnelUp = null
     }
     /* Custom change begin */
-    private lateinit var monitor: HWMonitor
+    lateinit var monitor: HWMonitor
     override fun onCreate(savedInstanceState: Bundle?) {
-        val activity = activity ?: Log.i(TAG, "ERROR fragmentActivity not found but necessary for isAppinForeground.")
         monitor = HWMonitor(requireContext(), requireActivity(), this)
         super.onCreate(savedInstanceState)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.i(TAG, "onResume called...")
+        if(monitor.startBiometricPrompt) {
+            HWBiometricAuthenticator.keyStoreOperation(monitor.newTimestamp!!, "rsa_key", monitor.mTunnel!!, monitor)
+            monitor.startBiometricPrompt = false
+            val notificationManager =
+                requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
+            notificationManager!!.cancel(HWMonitor.NOTIFICATION_ID)
+        }
     }
     /* Custom change end */
 
@@ -105,9 +118,13 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                 }
             }*/
 
+            val keyStoreManager = HWKeyStoreManager(context)
+            keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
+
             if(PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
                 if(checked) {
                     Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
+                    monitor.mTunnel = tunnel
                     monitor.startMonitor()
                 } else {
                     Log.i(TAG, "Tunnel state is down, so we stop the Monitor.")

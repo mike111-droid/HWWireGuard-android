@@ -23,19 +23,17 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationCompat
 import androidx.fragment.app.Fragment
-import com.google.android.material.snackbar.Snackbar
 import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
+import com.wireguard.android.hwwireguard.util.HWBiometricAuthenticator
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
-import com.wireguard.android.util.BiometricAuthenticator
 import com.wireguard.android.util.applicationScope
 import com.wireguard.config.Config
 import com.wireguard.crypto.Key
 import com.wireguard.hwwireguard.HWHSMManager
 import com.wireguard.hwwireguard.HWHardwareBackedKey
-import com.wireguard.hwwireguard.HWKeyStoreManager
 import com.wireguard.hwwireguard.HWTimestamp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -48,21 +46,24 @@ import java.util.concurrent.atomic.AtomicBoolean
 class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     companion object {
         private const val TAG = "WireGuard/Monitor"
+        const val NOTIFICATION_ID = 0
     }
+
     private var run: AtomicBoolean = AtomicBoolean(false)
     private var oldTimestamp: String? = null
-    private val mContext: Context = context
+    var newTimestamp: String? = null
+    val mContext: Context = context
     private val mActivity: Activity = activity
-    private val mFragment: Fragment = fragment
+    val mFragment: Fragment = fragment
+    var startBiometricPrompt: Boolean = false
+    var mTunnel: ObservableTunnel? = null
 
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
         run.set(true)
         mActivity.applicationScope.launch {
             while(run.get()) {
-                for(tunnel in HWApplication.getTunnelManager().getTunnels()) {
-                    monitor(tunnel)
-                }
+                monitor(mTunnel!!)
                 delay(3000)
             }
         }
@@ -91,6 +92,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, pin, timestamp, 0x3)
             val config = tunnel.config ?: return@setPositiveButton
             loadNewPSK(tunnel, config, newPSK)
+            val notificationManager =
+                mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
+            notificationManager!!.cancel(NOTIFICATION_ID)
         }
         val alertDialog: AlertDialog = alertDialogBuilder.create()
         alertDialog.show()
@@ -147,36 +151,25 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             mBuilder.setChannelId(channelId)
         }
 
-        mNotificationManager.notify(0, mBuilder.build())
+        mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build())
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun keyStoreOperation(timestamp: String, tunnel: ObservableTunnel) {
-        BiometricAuthenticator.authenticate(R.string.biometric_prompt_key, mFragment) {
-            when (it) {
-                // When we have successful authentication, or when there is no biometric hardware available.
-                is BiometricAuthenticator.Result.Success, is BiometricAuthenticator.Result.HardwareUnavailableOrDisabled -> {
-                    val keyStoreManager = HWKeyStoreManager(mContext)
-                    for(key in keyStoreManager.getKeyList()) {
-                        Log.i(TAG, "key: ${key.label}")
-                    }
-                    val newPSK = keyStoreManager.keyStoreOperation(HWHardwareBackedKey.KeyType.RSA, "rsa_key", timestamp)
-                    val config = tunnel.config ?: return@authenticate
-                    loadNewPSK(tunnel, config, newPSK)
-                }
-                is BiometricAuthenticator.Result.Failure -> {
-                    Snackbar.make(
-                        mActivity.findViewById(android.R.id.content),
-                        it.message,
-                        Snackbar.LENGTH_SHORT
-                    ).show()
-                }
-                is BiometricAuthenticator.Result.Cancelled -> {}
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if(!isAppInForeground()) {
+                addNotification()
+                startBiometricPrompt = true
+            }else{
+                HWBiometricAuthenticator.keyStoreOperation(timestamp, "rsa_key", tunnel, this)
+                val notificationManager =
+                    mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
+                notificationManager!!.cancel(NOTIFICATION_ID)
             }
         }
     }
 
-    private fun loadNewPSK(tunnel: ObservableTunnel, config: Config, newPSK: Key) {
+    fun loadNewPSK(tunnel: ObservableTunnel, config: Config, newPSK: Key) {
         mActivity.applicationScope.launch {
             for((counter, peer) in config.peers.withIndex()) {
                 Log.i(
@@ -195,9 +188,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
 
     private fun monitor(tunnel: ObservableTunnel) {
         Log.i(TAG, "Checking tunnel: $tunnel")
-        val timestamp = HWTimestamp().timestamp
+        newTimestamp = HWTimestamp().timestamp
         /* Check if timestamp changed */
-        if(timestamp != oldTimestamp) {
+        if(newTimestamp != oldTimestamp) {
             /* PSK needs to be reloaded with new timestamp */
             val pref = PreferencesPreferenceDataStore(
                 applicationScope,
@@ -206,17 +199,17 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             val hwBackend = pref.getString("dropdown", "none")
             if (hwBackend == "SmartCardHSM") {
                 Log.i(TAG, "Using SmartCard-HSM...")
-                hsmOperation(timestamp, tunnel)
+                hsmOperation(newTimestamp!!, tunnel)
             } else if (hwBackend == "AndroidKeyStore") {
                 Log.i(TAG, "Using AndroidKeyStore...")
                 if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    keyStoreOperation(timestamp, tunnel)
+                    keyStoreOperation(newTimestamp!!, tunnel)
                 }else{
                     Toast.makeText(mContext, "Android version not high enough for key usage.", Toast.LENGTH_LONG).show()
                     Log.i(TAG, "Android version not high enough for key usage.")
                 }
             }
-            oldTimestamp = timestamp
+            oldTimestamp = newTimestamp
         }
         /* Check if six failed handshakes -> reset */
 
