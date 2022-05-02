@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.wireguard.hwwireguard;
+package com.wireguard.android.hwwireguard.crypto;
 
 import android.util.Log;
 

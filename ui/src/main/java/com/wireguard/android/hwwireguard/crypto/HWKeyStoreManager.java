@@ -3,27 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.wireguard.hwwireguard;
+package com.wireguard.android.hwwireguard.crypto;
 
 import android.annotation.SuppressLint;
-
-import android.app.Activity;
 import android.content.Context;
-import android.hardware.biometrics.BiometricManager.Authenticators;
-import android.hardware.biometrics.BiometricPrompt;
-import android.hardware.biometrics.BiometricPrompt.AuthenticationCallback;
-import android.hardware.biometrics.BiometricPrompt.AuthenticationResult;
 import android.os.Environment;
 import android.security.keystore.KeyProperties;
 import android.security.keystore.KeyProtection;
 import android.util.Base64;
 import android.util.Log;
-import android.widget.Toast;
 
+import com.wireguard.android.hwwireguard.HWMonitor;
+import com.wireguard.android.model.ObservableTunnel;
 import com.wireguard.crypto.Key;
 import com.wireguard.crypto.KeyFormatException;
-import com.wireguard.hwwireguard.HWHardwareBackedKey.HardwareType;
-import com.wireguard.hwwireguard.HWHardwareBackedKey.KeyType;
+import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey.HardwareType;
+import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey.KeyType;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -55,7 +50,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Observable;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -65,7 +59,6 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import androidx.annotation.NonNull;
-import androidx.fragment.app.Fragment;
 
 /**
  * TODO: Not all characters are allowed for key labels/alias -> make sure to filter them at UI
@@ -76,6 +69,7 @@ import androidx.fragment.app.Fragment;
  *      4. Operations to store/load keyList and selectedKeyLabel into file HSMKeys.txt
  */
 public class HWKeyStoreManager {
+    public HWBiometricAuthenticator biometricAuthenticator;
     private static final String TAG = "WireGuard/KeyStoreManager";
     private String selectedKeyLabel = "UNSELECTED";
     private final List<HWHardwareBackedKey> keyList;
@@ -121,7 +115,7 @@ public class HWKeyStoreManager {
         final String[] split = keyStoreKey.split(",");
         final String label = split[0].split("=")[1];
         final byte slot = Byte.parseByte(split[1].split("=")[1]);
-        final HWHardwareBackedKey.KeyType type = HWHardwareBackedKey.KeyType.valueOf(split[2].split("=")[1]);
+        final KeyType type = KeyType.valueOf(split[2].split("=")[1]);
         return new HWHardwareBackedKey(HardwareType.KEYSTORE, label, slot, type);
     }
 
@@ -397,6 +391,11 @@ public class HWKeyStoreManager {
                         .build());
     }
 
+    public Key keyStoreOperationWithBio(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor) {
+
+        return null;
+    }
+
     // TODO: clean up catch clause
     /**
      * Function to perform the AndroidKeyStore operation (AES_ECB or RSA).
@@ -406,7 +405,7 @@ public class HWKeyStoreManager {
      * @param init   : Input to sign or encrypt.
      * @return       : Key for newPSK.
      */
-    public Key keyStoreOperation(final KeyType keyType, final String alias, final String init) {
+    public Key keyStoreOperationNoBio(final KeyType keyType, final String alias, final String init) {
         try {
             final KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
             keyStore.load(null);

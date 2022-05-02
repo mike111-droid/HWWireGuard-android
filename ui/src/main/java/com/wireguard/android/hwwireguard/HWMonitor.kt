@@ -26,15 +26,16 @@ import androidx.fragment.app.Fragment
 import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
-import com.wireguard.android.hwwireguard.util.HWBiometricAuthenticator
+import com.wireguard.android.hwwireguard.crypto.HWBiometricAuthenticator
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.applicationScope
 import com.wireguard.config.Config
 import com.wireguard.crypto.Key
-import com.wireguard.hwwireguard.HWHSMManager
-import com.wireguard.hwwireguard.HWHardwareBackedKey
-import com.wireguard.hwwireguard.HWTimestamp
+import com.wireguard.android.hwwireguard.crypto.HWHSMManager
+import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey
+import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
+import com.wireguard.android.hwwireguard.crypto.HWTimestamp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -88,7 +89,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         alertDialogBuilder.setView(edittext)
         alertDialogBuilder.setPositiveButton("Enter") { _, _ ->
             val pin = edittext.text.toString()
-            val hsmManager = HWHSMManager(mContext)
+            val hsmManager =
+                HWHSMManager(mContext)
             val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, pin, timestamp, 0x3)
             val config = tunnel.config ?: return@setPositiveButton
             loadNewPSK(tunnel, config, newPSK)
@@ -161,7 +163,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 addNotification()
                 startBiometricPrompt = true
             }else{
-                HWBiometricAuthenticator.keyStoreOperation(timestamp, "rsa_key", tunnel, this)
+                val keyStoreManager = HWKeyStoreManager(mContext)
+                keyStoreManager.biometricAuthenticator.keyStoreOperation(timestamp, "rsa_key", tunnel, this)
                 val notificationManager =
                     mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
                 notificationManager!!.cancel(NOTIFICATION_ID)
@@ -188,7 +191,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
 
     private fun monitor(tunnel: ObservableTunnel) {
         Log.i(TAG, "Checking tunnel: $tunnel")
-        newTimestamp = HWTimestamp().timestamp
+        newTimestamp = HWTimestamp().timestamp.toString()
         /* Check if timestamp changed */
         if(newTimestamp != oldTimestamp) {
             /* PSK needs to be reloaded with new timestamp */

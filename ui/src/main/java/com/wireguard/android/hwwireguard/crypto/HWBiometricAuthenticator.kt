@@ -1,32 +1,29 @@
 /*
- * Copyright © 2017-2021 WireGuard LLC. All Rights Reserved.
+ * Copyright © 2017-2022 WireGuard LLC. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.wireguard.android.hwwireguard.util
+package com.wireguard.android.hwwireguard.crypto
 
 import android.util.Log
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import com.wireguard.android.hwwireguard.HWMonitor
 import com.wireguard.android.model.ObservableTunnel
-import com.wireguard.hwwireguard.HWKeyStoreManager
 import java.security.KeyStore
 import java.security.Signature
 import javax.crypto.Cipher
 
-
-object HWBiometricAuthenticator {
-    private const val TAG = "WireGuard/HWBiometricAuthenticator"
+class HWBiometricAuthenticator {
 
     /**
      * Function to perform keyStoreOperation for HWWireGuard with BiometricPrompt.
      */
     fun keyStoreOperation(
-            input: String,
-            alias: String,
-            tunnel: ObservableTunnel,
-            monitor: HWMonitor
+        input: String,
+        alias: String,
+        tunnel: ObservableTunnel,
+        monitor: HWMonitor
     ) {
         val keyStore = KeyStore.getInstance("AndroidKeyStore")
         keyStore.load(null)
@@ -34,13 +31,11 @@ object HWBiometricAuthenticator {
         val authCallback = object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                 super.onAuthenticationError(errorCode, errString)
-                //Looper.prepare()
                 Log.w(TAG, "onAuthenticationError $errorCode $errString")
             }
 
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                 super.onAuthenticationSucceeded(result)
-                //Looper.prepare()
                 Log.d(TAG, "onAuthenticationSucceeded " + result.cryptoObject)
                 var result: ByteArray?
                 if(keyEntry is KeyStore.PrivateKeyEntry) {
@@ -69,7 +64,6 @@ object HWBiometricAuthenticator {
 
             override fun onAuthenticationFailed() {
                 super.onAuthenticationFailed()
-                //Looper.prepare()
                 Log.w(TAG, "onAuthenticationFailed")
             }
         }
@@ -83,5 +77,9 @@ object HWBiometricAuthenticator {
             .setDeviceCredentialAllowed(true)
             .build()
         prompt.authenticate(promptInfo)
+    }
+
+    companion object {
+        private const val TAG = "WireGuard/HWBiometricAuthenticator"
     }
 }

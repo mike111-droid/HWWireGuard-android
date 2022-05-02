@@ -3,15 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.wireguard.hwwireguard;
+package com.wireguard.android.hwwireguard.crypto;
 
 import android.content.Context;
 import android.util.Log;
 
-import com.wireguard.crypto.KeyFormatException;
-import com.wireguard.hwwireguard.HWHardwareBackedKey.HardwareType;
-import com.wireguard.hwwireguard.HWHardwareBackedKey.KeyType;
 import com.wireguard.crypto.Key;
+import com.wireguard.crypto.KeyFormatException;
+import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey.HardwareType;
+import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey.KeyType;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -100,7 +100,7 @@ public class HWHSMManager {
         final String[] split = hsmKey.split(",");
         final String label = split[0].split("=")[1];
         final byte slot = Byte.parseByte(split[1].split("=")[1]);
-        final HWHardwareBackedKey.KeyType type = HWHardwareBackedKey.KeyType.valueOf(split[2].split("=")[1]);
+        final KeyType type = KeyType.valueOf(split[2].split("=")[1]);
         return new HWHardwareBackedKey(HardwareType.HSM, label, slot, type);
     }
 
@@ -242,7 +242,7 @@ public class HWHSMManager {
      * @param keyID  : Slot ID of the key to use.
      * @return       : New PSK key.
      */
-    public Key hsmOperation(final HWHardwareBackedKey.KeyType keyType, final String pin, final String init, final byte keyID) {
+    public Key hsmOperation(final KeyType keyType, final String pin, final String init, final byte keyID) {
         try {
             /* Startup card and get SmartCardHSMCardService */
             final SmartCardHSMCardService schsmcs = getSmartCardHSMCardService();
