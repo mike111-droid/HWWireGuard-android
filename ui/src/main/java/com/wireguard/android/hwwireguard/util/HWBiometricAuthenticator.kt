@@ -5,11 +5,7 @@
 
 package com.wireguard.android.hwwireguard.util
 
-import android.os.AsyncTask
-import android.os.Looper
-import android.util.Base64
 import android.util.Log
-import android.widget.Toast
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import com.wireguard.android.hwwireguard.HWMonitor
@@ -17,13 +13,15 @@ import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.hwwireguard.HWKeyStoreManager
 import java.security.KeyStore
 import java.security.Signature
-import java.util.concurrent.Executors
 import javax.crypto.Cipher
 
 
 object HWBiometricAuthenticator {
     private const val TAG = "WireGuard/HWBiometricAuthenticator"
 
+    /**
+     * Function to perform keyStoreOperation for HWWireGuard with BiometricPrompt.
+     */
     fun keyStoreOperation(
             input: String,
             alias: String,
