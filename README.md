@@ -3,6 +3,12 @@
 This is an implementation of WireGuardHSM for Android using the WireGuardGoBackend.  
 This is the staging branch to prevent pollution in the main branch.
 
+## Structure
+The main new classes are in the *ui* package in the subfolder *hwwireguard*. Other changes that are necessary in the code iteself sould be marked by the tags:
+/* Custom change begin */
+// Additional Code
+/* Custom change end */
+
 ## Building
 
 ```
