@@ -5,9 +5,9 @@ This is the staging branch to prevent pollution in the main branch.
 
 ## Structure
 The main new classes are in the *ui* package in the subfolder *hwwireguard*. Other changes that are necessary in the code iteself sould be marked by the tags:  
-/* Custom change begin */  
+/\* Custom change begin \*/  
 // Additional Code  
-/* Custom change end */  
+/\* Custom change end \*/  
 
 ## Building
 
