@@ -31,6 +31,7 @@ import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.applicationScope
 import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
+import com.wireguard.crypto.Key
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -61,7 +62,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         Log.i(TAG, "onResume called...")
         if(monitor.startBiometricPrompt) {
             val keyStoreOperation =  HWKeyStoreManager(requireContext())
-            keyStoreOperation.biometricAuthenticator.keyStoreOperation(monitor.newTimestamp!!, "rsa_key", monitor.mTunnel!!, monitor)
+            keyStoreOperation.keyStoreOperation(monitor.newTimestamp!!, "rsa_key", monitor.mTunnel!!, monitor)
             monitor.startBiometricPrompt = false
             val notificationManager =
                 requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
@@ -105,22 +106,9 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }
 
             /* Custom change begin */
-            /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if(!monitor.isAppInForeground()) {
-                    monitor.addNotification()
-                }
-                delay(5000)
-                if(!monitor.isAppInForeground()) {
-                    monitor.addNotification()
-                }
-                delay(10000)
-                if(!monitor.isAppInForeground()) {
-                    monitor.addNotification()
-                }
-            }*/
-
             val keyStoreManager = HWKeyStoreManager(context)
             keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
+            //keyStoreManager.deleteKey("rsa_key")
 
             if(PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
                 if(checked) {
@@ -132,9 +120,11 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                     monitor.stopMonitor()
                 }
             }else{
-                val config = tunnel.getConfigAsync()
-                delay(1000)
-                HWApplication.getBackend().addConf(config)
+                if(checked) {
+                    val config = tunnel.getConfigAsync()
+                    delay(1000)
+                    HWApplication.getBackend().addConf(config)
+                }
             }
             /* Custom change end */
             setTunnelStateWithPermissionsResult(tunnel, checked)

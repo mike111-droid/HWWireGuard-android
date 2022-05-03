@@ -68,7 +68,6 @@ public class HWHSMManager {
     // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
     /**
      * Function to set which key is selected for operation. Needs to be called outside of this class (user select).
-     *
      * @param alias: String with key alias.
      *
      */
@@ -83,7 +82,6 @@ public class HWHSMManager {
 
     /**
      * Function to return which key is selected.
-     *
      * @return: String with alias of key that is selected.
      */
     public String getSelectedKey(){
@@ -92,7 +90,6 @@ public class HWHSMManager {
 
     /**
      * Function to parse key in String format.
-     *
      * @param hsmKey: String with key.
      * @return      : HSMKey.
      */
@@ -106,7 +103,6 @@ public class HWHSMManager {
 
     /**
      * Function to load the HSM keys saved into keyList.
-     *
      */
     private void loadKeys() throws IOException {
         /* Read file to String line */
@@ -134,6 +130,9 @@ public class HWHSMManager {
         in.close();
     }
 
+    /**
+     * Function to handle file in which key list is stored.
+     */
     private void handleKeyListFileInput(final StringBuilder stringBuilder, final String line, final int lineCounter) throws IOException {
         if(lineCounter > 1) {
             /* List has keys */
@@ -152,7 +151,6 @@ public class HWHSMManager {
 
     /**
      * Function to store the HSM keys into a file that later is used to load them again.
-     *
      */
     private void storeKeys() throws IOException {
         final StringBuilder writeStr = new StringBuilder();
@@ -168,7 +166,6 @@ public class HWHSMManager {
     /**
      * Function to add key to keyList.
      * // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
-     *
      * @param key: Key to be added.
      */
     public void addKey(final HWHardwareBackedKey key) {
@@ -191,7 +188,6 @@ public class HWHSMManager {
 
     /**
      * Function to delete key from keyList.
-     *
      * @param label: Key to be deleted.
      */
     public void deleteKey(final String label) {
@@ -212,7 +208,6 @@ public class HWHSMManager {
 
     /**
      * Function to get key from alias/label.
-     *
      * @param alias: Alias of key we are looking for.
      * @return     : First _HardwareBackedKey with same label/alias.
      */
@@ -235,7 +230,6 @@ public class HWHSMManager {
 
     /**
      * Function to perform either AES or RSA operation on the HSM.
-     *
      * @param keyType: Specifies whether to use KeyType.AES or KeyType.RSA.
      * @param pin    : String with pin for HSM.
      * @param init   : Input data.
@@ -285,7 +279,6 @@ public class HWHSMManager {
 
     /**
      * Function transforms byte[] of key in hex to type Key.
-     *
      * @param bytes: Byte array with key.
      * @return     : Key.
      */
@@ -294,13 +287,11 @@ public class HWHSMManager {
         for (final byte aByte : bytes) {
             strSig.append(String.format("%02x", aByte));
         }
-        Log.i(TAG, "psk: " + strSig);
         return Key.fromHex(strSig.toString());
     }
 
     /**
      * Function perform sha256 operation on data.
-     *
      * @param data: Byte array for input.
      * @return    : Byte array with output.
      */
@@ -312,7 +303,6 @@ public class HWHSMManager {
 
     /**
      * Function to check pin of SmartCard-HSM.
-     *
      * @param pin    : String with pin for SmartCard-HSM.
      * @param schsmcs: SmartCardHSMCardService for operations on SmartCard-HSM.
      */
@@ -324,6 +314,9 @@ public class HWHSMManager {
         }
     }
 
+    /**
+     * Function to return SmartCardHSMService.
+     */
     @Nullable private SmartCardHSMCardService getSmartCardHSMCardService() throws OpenCardPropertyLoadingException, ClassNotFoundException, CardServiceException, CardTerminalException {
         /* Startup */
         Log.i(TAG, "OCF startup...");
@@ -361,13 +354,10 @@ public class HWHSMManager {
 
     /**
      * Function to perform the RSA operation on the HSM. Only keys with length 2048 allowed.
-     *
      * @param schsmcs: SmartCardHSMCardService that is needed for signHash function.
      * @param digest : Byte array used as input (hash of init)
      * @param keyID  : Slot of key to be used.
      * @return       : Byte array with signature.
-     * @throws CardServiceException : Exception of SmartCardHSMCardService.
-     * @throws CardTerminalException: Exception of SmartCardHSMCardService.
      */
     private byte[] hsmOperationRSA(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
         /* RSA operation on HSM */
@@ -377,13 +367,10 @@ public class HWHSMManager {
 
     /**
      * Function to perform the AES operation on the HSM. Only keys with length 256 allowed.
-     *
      * @param schsmcs: SmartCardHSMCardService that is needed for sendCommandAPDU function.
      * @param digest : Byte array used as input (hash of init)
      * @param keyID  : Slot of key to be used.
      * @return       : Byte array with signature.
-     * @throws CardServiceException : Exception of SmartCardHSMCardService.
-     * @throws CardTerminalException: Exception of SmartCardHSMCardService.
      */
     private byte[] hsmOperationAES(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
         /* AES operation on HSM. APDU package according to documentation. */

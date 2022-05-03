@@ -10,11 +10,13 @@ import android.content.Context;
 import android.os.Environment;
 import android.security.keystore.KeyProperties;
 import android.security.keystore.KeyProtection;
+import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Base64;
 import android.util.Log;
 
 import com.wireguard.android.hwwireguard.HWMonitor;
 import com.wireguard.android.model.ObservableTunnel;
+import com.wireguard.config.Config;
 import com.wireguard.crypto.Key;
 import com.wireguard.crypto.KeyFormatException;
 import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey.HardwareType;
@@ -33,6 +35,7 @@ import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyStore;
+import java.security.KeyStore.PrivateKeyEntry;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -63,13 +66,16 @@ import androidx.annotation.NonNull;
 /**
  * TODO: Not all characters are allowed for key labels/alias -> make sure to filter them at UI
  * This class offers:
- *      1. Crypto-Operations with AndroidKeyStore (AES_ECB enc and RSA sign)
+ *      1. Crypto-Operations with AndroidKeyStore (AES enc and RSA sign)
  *      2. keyList to save HardwareBackedKeys (label/alias, type, slot=always 0 because not necessary)
  *      3. selectedKeyLabel to identify one AndroidKeyStore key to use in operations (provides Getter and Setter Method)
  *      4. Operations to store/load keyList and selectedKeyLabel into file HSMKeys.txt
  */
 public class HWKeyStoreManager {
-    public HWBiometricAuthenticator biometricAuthenticator;
+    /**
+     * HWBiometricAuthenticator has keyStoreOperation function with BiometricPrompt.
+     */
+    public HWBiometricAuthenticator biometricAuthenticator = new HWBiometricAuthenticator();
     private static final String TAG = "WireGuard/KeyStoreManager";
     private String selectedKeyLabel = "UNSELECTED";
     private final List<HWHardwareBackedKey> keyList;
@@ -84,7 +90,6 @@ public class HWKeyStoreManager {
     /**
      * Function to set which key is selected for operation.
      * // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
-     *
      */
     private void setSelectedKeyLabel(String alias) {
         selectedKeyLabel = alias;
@@ -98,7 +103,6 @@ public class HWKeyStoreManager {
 
     /**
      * Function to return which key is selected.
-     *
      * @return: String with alias of key that is selected.
      */
     public String getSelectedKey(){
@@ -107,7 +111,6 @@ public class HWKeyStoreManager {
 
     /**
      * Function to parse key in String format.
-     *
      * @param keyStoreKey: String with key.
      * @return           : HSMKey.
      */
@@ -121,7 +124,6 @@ public class HWKeyStoreManager {
 
     /**
      * Function to load the HSM keys saved into keyList.
-     *
      */
     private void loadKeys() throws IOException {
         final StringBuilder stringBuilder = new StringBuilder();
@@ -162,7 +164,6 @@ public class HWKeyStoreManager {
 
     /**
      * Function to store the AndroidKeyStore keys into a file that later is used to load them again.
-     *
      */
     private void storeKeys() throws IOException {
         final StringBuilder writeStr = new StringBuilder();
@@ -179,7 +180,6 @@ public class HWKeyStoreManager {
 
     /**
      * Function to remove key from AndroidKeyStore.
-     *
      * @param alias: Alias of key.
      * @return     : True for success. False for failure.
      */
@@ -214,7 +214,6 @@ public class HWKeyStoreManager {
 
     /**
      * Function to get key from alias/label.
-     *
      * @param alias: Alias of key we are looking for.
      * @return     : First _HardwareBackedKey with same label/alias.
      */
@@ -237,7 +236,6 @@ public class HWKeyStoreManager {
 
     /**
      * Function to return all keys in AndroidKeyStore that can be used.
-     *
      * @return: HashMap of all keys with their entry.
      */
     public static HashMap<String, String> getAndroidKeyStoreKeys() {
@@ -262,11 +260,9 @@ public class HWKeyStoreManager {
         }
     }
 
-    // TODO: combine to one function addKeyStoreKey
     /**
      * Function to add new AES key to AndroidKeyStore.
      * // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
-     *
      * @param   key: String with key in Base64 format.
      * @param alias: Alias of key.
      * @return     : True for success. False for failure.
@@ -299,6 +295,11 @@ public class HWKeyStoreManager {
         return true;
     }
 
+    /**
+     * Function to add SecretKey to KeyStore.
+     * @param alias    : String with alias of key.
+     * @param importKey: SecretKey.
+     */
     private void addAESKeyToAndroidKeyStore(final String alias, final SecretKey importKey) throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException {
         final KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
         keyStore.load(null);
@@ -315,7 +316,6 @@ public class HWKeyStoreManager {
     /**
      * Function to add new RSA key to AndroidKeyStore.
      * // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
-     *
      * @param crtFile: Name of file in Downloads with pem or der certificate.
      * @param keyFile: Name of file in Downloads in PKCS#8 form.
      * @param   alias: Alias of key.
@@ -357,6 +357,11 @@ public class HWKeyStoreManager {
         return false;
     }
 
+    /**
+     * Function to get RSA PrivateKey from keyFile in Download folder.
+     * @param keyFile: String with name of keyFile.
+     * @return       : PrivateKey.
+     */
     private PrivateKey getPrivateKey(final String keyFile) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
         final String pathKey = Environment.getExternalStorageDirectory() + File.separator + "Download" + File.separator + keyFile;
         Log.i(TAG, "Using this path for private key: " + pathKey);
@@ -367,6 +372,11 @@ public class HWKeyStoreManager {
         return privateKey;
     }
 
+    /**
+     * Function to get RSA Certificate from crtFile in Download folder.
+     * @param crtFile: String with name of crtFile.
+     * @return       : Certificate.
+     */
     private Certificate getCertificate(final String crtFile) throws IOException, CertificateException {
         final String pathCrt = Environment.getExternalStorageDirectory() + File.separator + "Download" + File.separator + crtFile;
         Log.i(TAG, "Using this path for cert: " + pathCrt);
@@ -377,6 +387,12 @@ public class HWKeyStoreManager {
         return cert;
     }
 
+    /**
+     * Function to add entry to KeyStore. PrivateKey and Certificate required.
+     * @param alias     : String with alias/name of key.
+     * @param cert      : Certificate.
+     * @param privateKey: PrivateKey.
+     */
     private void addRSAKeyToAndroidKeyStore(final String alias, final Certificate cert, final PrivateKey privateKey) throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException {
         final KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
         ks.load(null);
@@ -387,46 +403,70 @@ public class HWKeyStoreManager {
                         .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
-                        .setUserAuthenticationValidityDurationSeconds(10)
+                        //.setUserAuthenticationRequired(true)
+                        /* User has to authenticate every two hours */
+                        .setUserAuthenticationValidityDurationSeconds(120)
                         .build());
-    }
-
-    public Key keyStoreOperationWithBio(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor) {
-
-        return null;
     }
 
     // TODO: clean up catch clause
     /**
-     * Function to perform the AndroidKeyStore operation (AES_ECB or RSA).
-     *
-     * @param keyType : Allowed AES or RSA. AES leads to AES_ECB.
-     * @param alias  : Alias of key to use.
-     * @param init   : Input to sign or encrypt.
-     * @return       : Key for newPSK.
+     * Function for keyStoreOperation.
+     * @param input  : Timestamp/Init that will be signed/encrypted.
+     * @param alias  : String with name of key to use.
+     * @param tunnel : Tunnel that PSK will be changed.
+     * @param monitor: Monitor for access to biometricAuthenticator functions.
+     * @return       : Key with new PSK if no BiometricPrompt. Null if BiometricPrompt.
      */
-    public Key keyStoreOperationNoBio(final KeyType keyType, final String alias, final String init) {
+    public Key keyStoreOperation(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor) {
         try {
-            final KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
-            keyStore.load(null);
-            final byte[] initBytes = init.getBytes(StandardCharsets.UTF_8);
-
-            if(keyType == KeyType.AES) {
-                return aesOperation(alias, keyStore, initBytes);
-            }else if(keyType == KeyType.RSA) {
-                return rsaOperation(alias, keyStore, initBytes);
-            }else{
-                return null;
-            }
-        } catch (final KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | KeyFormatException | IllegalBlockSizeException | BadPaddingException | UnrecoverableEntryException | SignatureException e) {
-            Log.e(TAG, Log.getStackTraceString(e));
+            Key newPSK = keyStoreOperationNoBio(input, alias, tunnel, monitor);
+            return newPSK;
+        } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | UnrecoverableEntryException | KeyFormatException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException | SignatureException e) {
+            Log.i(TAG, "We have to use withBio");
+            keyStoreOperationWithBio(input, alias, tunnel, monitor);
             return null;
         }
     }
 
-    @NonNull private Key rsaOperation(final String alias, final KeyStore keyStore, final byte[] initBytes) throws NoSuchAlgorithmException, InvalidKeyException, KeyStoreException, UnrecoverableEntryException, SignatureException, KeyFormatException {
+    /**
+     * Function that calls BiometricPrompt (which automatically loads new PSK into backend)
+     */
+    public void keyStoreOperationWithBio(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor) {
+        biometricAuthenticator.keyStoreOperation(input, alias, tunnel, monitor);
+    }
+
+    /**
+     * Function to perform the AndroidKeyStore operation (AES_ECB or RSA).
+     * @param alias  : Alias of key to use.
+     * @param init   : Input to sign or encrypt.
+     * @return       : Key for newPSK.
+     */
+    public Key keyStoreOperationNoBio(final String init, final String alias, final ObservableTunnel tunnel, final HWMonitor monitor) throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException, UnrecoverableEntryException, KeyFormatException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, SignatureException {
+        Key newPSK = null;
+        final KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+        keyStore.load(null);
+        KeyStore.Entry keyEntry = keyStore.getEntry(alias, null);
+        if(keyEntry instanceof KeyStore.SecretKeyEntry) {
+            newPSK =  aesOperation(keyEntry, init.getBytes(StandardCharsets.UTF_8));
+        } else if(keyEntry instanceof KeyStore.PrivateKeyEntry) {
+            newPSK =  rsaOperation(keyEntry, init.getBytes(StandardCharsets.UTF_8));
+        }
+        if(newPSK == null) {
+            Log.i(TAG, "newPSK is null... something is wrong with AndroidKeyStore Entries.");
+        }
+        return newPSK;
+    }
+
+    /**
+     * Function to perform the RSA operation.
+     * @param keyEntry : KeyEntry to use.
+     * @param initBytes: Init to be signed.
+     * @return         : Key for newPSK.
+     */
+    @NonNull private Key rsaOperation(final KeyStore.Entry keyEntry, final byte[] initBytes) throws NoSuchAlgorithmException, InvalidKeyException, KeyStoreException, UnrecoverableEntryException, SignatureException, KeyFormatException {
         final Signature sig = Signature.getInstance("SHA256WithRSA");
-        sig.initSign(((KeyStore.PrivateKeyEntry) keyStore.getEntry(alias, null)).getPrivateKey());
+        sig.initSign(((KeyStore.PrivateKeyEntry) keyEntry).getPrivateKey());
 
         /* Sign initBytes with SHA256WithRSA */
         sig.update(initBytes);
@@ -434,10 +474,15 @@ public class HWKeyStoreManager {
         return bytesToKey(sha256(signature));
     }
 
-    // TODO: Encrypt not yet implemented
-    @NonNull private Key aesOperation(final String alias, final KeyStore keyStore, final byte[] initBytes) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, KeyStoreException, UnrecoverableKeyException, KeyFormatException, IllegalBlockSizeException, BadPaddingException {
+    /**
+     * Function to perform
+     * @param keyEntry
+     * @param initBytes
+     * @return
+     */
+    @NonNull private Key aesOperation(final KeyStore.Entry keyEntry, final byte[] initBytes) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, KeyFormatException, IllegalBlockSizeException, BadPaddingException {
         @SuppressLint("GetInstance") final Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
-        cipher.init(Cipher.ENCRYPT_MODE, keyStore.getKey(alias, null));
+        cipher.init(Cipher.ENCRYPT_MODE, ((KeyStore.SecretKeyEntry) keyEntry).getSecretKey());
         byte[] digest = sha256(initBytes);
 
         /* Encrypt with AES */
@@ -446,7 +491,6 @@ public class HWKeyStoreManager {
 
     /**
      * Function transforms byte[] of key in hex to type Key.
-     *
      * @param bytes: Byte array with key.
      * @return     : Key.
      */
@@ -455,13 +499,11 @@ public class HWKeyStoreManager {
         for (final byte aByte : bytes) {
             strSig.append(String.format("%02x", aByte));
         }
-        Log.i(TAG, "psk: " + strSig);
         return Key.fromHex(strSig.toString());
     }
 
     /**
      * Function perform sha256 operation on data.
-     *
      * @param data: Byte array for input.
      * @return    : Byte array with output.
      */

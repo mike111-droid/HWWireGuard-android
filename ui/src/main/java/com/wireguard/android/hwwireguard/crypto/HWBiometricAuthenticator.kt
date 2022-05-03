@@ -14,8 +14,10 @@ import java.security.KeyStore
 import java.security.Signature
 import javax.crypto.Cipher
 
+/**
+ * Class to hold keyStoreOperation with BiometricPrompt.
+ */
 class HWBiometricAuthenticator {
-
     /**
      * Function to perform keyStoreOperation for HWWireGuard with BiometricPrompt.
      */
@@ -59,7 +61,9 @@ class HWBiometricAuthenticator {
                 }
                 if(result == null) return
                 val config = tunnel.config ?: return
-                monitor.loadNewPSK(tunnel, config, HWKeyStoreManager.bytesToKey(HWKeyStoreManager.sha256(result)))
+                val newPSK = HWKeyStoreManager.bytesToKey(HWKeyStoreManager.sha256(result))
+                Log.i(TAG, "Loading PSK " + newPSK.toBase64())
+                monitor.loadNewPSK(config, newPSK)
             }
 
             override fun onAuthenticationFailed() {
