@@ -310,6 +310,8 @@ public class HWKeyStoreManager {
                         .setBlockModes(KeyProperties.BLOCK_MODE_ECB)
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                         .setRandomizedEncryptionRequired(false)
+                        .setUserAuthenticationRequired(true)
+                        .setUserAuthenticationValidityDurationSeconds(10)
                         .build());
     }
 
@@ -403,9 +405,8 @@ public class HWKeyStoreManager {
                         .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
-                        //.setUserAuthenticationRequired(true)
-                        /* User has to authenticate every two hours */
-                        .setUserAuthenticationValidityDurationSeconds(120)
+                        .setUserAuthenticationRequired(true)
+                        .setUserAuthenticationValidityDurationSeconds(10)
                         .build());
     }
 

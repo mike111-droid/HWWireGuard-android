@@ -62,7 +62,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         Log.i(TAG, "onResume called...")
         if(monitor.startBiometricPrompt) {
             val keyStoreOperation =  HWKeyStoreManager(requireContext())
-            keyStoreOperation.keyStoreOperation(monitor.newTimestamp!!, "rsa_key", monitor.mTunnel!!, monitor)
+            keyStoreOperation.keyStoreOperation(monitor.newTimestamp!!, "rsa_key", monitor.getTunnel()!!, monitor)
             monitor.startBiometricPrompt = false
             val notificationManager =
                 requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
@@ -106,14 +106,14 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }
 
             /* Custom change begin */
-            val keyStoreManager = HWKeyStoreManager(context)
-            keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
+            //val keyStoreManager = HWKeyStoreManager(context)
+            //keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
             //keyStoreManager.deleteKey("rsa_key")
 
             if(PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
                 if(checked) {
                     Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
-                    monitor.mTunnel = tunnel
+                    monitor.setTunnel(tunnel)
                     monitor.startMonitor()
                 } else {
                     Log.i(TAG, "Tunnel state is down, so we stop the Monitor.")

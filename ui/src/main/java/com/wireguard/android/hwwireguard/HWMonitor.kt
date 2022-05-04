@@ -56,7 +56,10 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private val mActivity: Activity = activity
     val mFragment: Fragment = fragment
     var startBiometricPrompt: Boolean = false
-    var mTunnel: ObservableTunnel? = null
+    /* Tunnel can only be set once */
+    private var mTunnel: ObservableTunnel? = null
+    /* isTunnelSet makes sure that mTunnel is only set once */
+    private var isTunnelSet: Boolean = false
 
     /**
      * Function to start the monitor process. Is stop with AtomicBoolean run. mTunnel must be set before.
@@ -193,9 +196,11 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     fun loadNewPSK(config: Config, newPSK: Key) {
         mActivity.applicationScope.launch {
-            for((counter, _) in config.peers.withIndex()) {
+            for((counter, peer) in config.peers.withIndex()) {
+                Log.i(TAG, "PSK before: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peer.publicKey]!!.toBase64())
                 config.peers[counter].setPreSharedKey(newPSK)
                 HWApplication.getBackend().addConf(config)
+                Log.i(TAG, "PSK after: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peer.publicKey]!!.toBase64())
             }
         }
     }
@@ -246,5 +251,22 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         }
 
         mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build())
+    }
+
+    /**
+     * Function to set tunnel. Only can set once because of isTunnelSet boolean.
+     */
+    fun setTunnel(tunnel: ObservableTunnel) {
+        if(!isTunnelSet) {
+            mTunnel = tunnel
+            isTunnelSet = true
+        }
+    }
+
+    /**
+     * Function to get tunnel because its private to protect it from setting.
+     */
+    fun getTunnel() : ObservableTunnel? {
+        return mTunnel
     }
 }
