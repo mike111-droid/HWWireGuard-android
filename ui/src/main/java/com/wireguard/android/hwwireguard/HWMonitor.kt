@@ -26,17 +26,19 @@ import androidx.fragment.app.Fragment
 import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
+import com.wireguard.android.hwwireguard.crypto.HWHSMManager
+import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey
+import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
+import com.wireguard.android.hwwireguard.crypto.HWTimestamp
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.applicationScope
 import com.wireguard.config.Config
 import com.wireguard.crypto.Key
-import com.wireguard.android.hwwireguard.crypto.HWHSMManager
-import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey
-import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
-import com.wireguard.android.hwwireguard.crypto.HWTimestamp
+import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMCardService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import opencard.core.service.SmartCard
 import java.util.concurrent.atomic.AtomicBoolean
 
 
@@ -60,17 +62,53 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private var mTunnel: ObservableTunnel? = null
     /* isTunnelSet makes sure that mTunnel is only set once */
     private var isTunnelSet: Boolean = false
+    /* SmartCardHSMCardService is necessary for all interactions with HSM */
+    var schsmcs: SmartCardHSMCardService? = null
 
     /**
      * Function to start the monitor process. Is stop with AtomicBoolean run. mTunnel must be set before.
      */
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
-        run.set(true)
+        val pref = PreferencesPreferenceDataStore(
+            applicationScope,
+            HWApplication.getPreferencesDataStore()
+        )
         mActivity.applicationScope.launch {
-            while(run.get()) {
-                monitor(mTunnel!!)
-                delay(3000)
+            try {
+                val hwBackend = pref.getString("dropdown", "none")
+                if (hwBackend == "SmartCardHSM") {
+                    /* Create session for HSM operations */
+                    val hsmManager = HWHSMManager(mContext)
+                    schsmcs = hsmManager.smartCardHSMCardService
+                    schsmcs?.let { enterPin(it, hsmManager) }
+                    /* Wait for user to enter pin */
+                    while(!run.get()) {
+                        delay(1000)
+                    }
+                }else if(hwBackend == "AndroidKeyStore") {
+                    /* Set run to true so monitoring starts */
+                    run.set(true)
+                }
+                /* Start monitor process that updates PSK with every changing timestamp */
+                while(run.get()) {
+                    monitor()
+                    delay(3000)
+                }
+            /* Catch all expression that might be thrown by the SmartCard-HSM */
+            } catch (e: Exception) {
+                Log.i(TAG, Log.getStackTraceString(e));
+            } finally {
+                /* Make sure to shutdown SmartCard-HSM */
+                val hwBackend = pref.getString("dropdown", "none")
+                if (hwBackend == "SmartCardHSM") {
+                    try {
+                        Log.i(TAG, "Shutting down.")
+                        SmartCard.shutdown()
+                    } catch (e: Exception) {
+                        Log.i(TAG, Log.getStackTraceString(e))
+                    }
+                }
             }
         }
     }
@@ -80,15 +118,17 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     fun stopMonitor() {
         Log.i(TAG, "inside stopMonitor")
+        /* Reset oldTimestamp to null in case tunnel is turned on again */
         oldTimestamp = null
+        /* Set run to false so while-loop in startMonitor() is ended */
         run.set(false)
     }
 
     /**
      * Function to monitor for new timestamp. If new timestamp then calculate newPSK and load it to backend.
      */
-    private suspend fun monitor(tunnel: ObservableTunnel) {
-        Log.i(TAG, "Checking tunnel: $tunnel")
+    private suspend fun monitor() {
+        Log.i(TAG, "Checking tunnel: $mTunnel")
         newTimestamp = HWTimestamp().timestamp.toString()
         /* Check if timestamp changed */
         if(newTimestamp != oldTimestamp) {
@@ -98,14 +138,17 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 HWApplication.getPreferencesDataStore()
             )
             val hwBackend = pref.getString("dropdown", "none")
+            /* Check which mode is selected */
             if (hwBackend == "SmartCardHSM") {
                 Log.i(TAG, "Using SmartCard-HSM...")
-                hsmOperation(newTimestamp!!, tunnel)
+                /* reload PSK with newTimestamp signed by SmartCard-HSM */
+                hsmOperation(newTimestamp!!)
             } else if (hwBackend == "AndroidKeyStore") {
                 Log.i(TAG, "Using AndroidKeyStore...")
                 /* Check for minimum version to run app */
                 if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    keyStoreOperation(newTimestamp!!, tunnel)
+                    /* reload PSK with newTimestamp signed by Android KeyStore */
+                    keyStoreOperation(newTimestamp!!)
                 }else{
                     Toast.makeText(mContext, "Android version not high enough for key usage.", Toast.LENGTH_LONG).show()
                     Log.i(TAG, "Android version not high enough for key usage.")
@@ -117,9 +160,10 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     }
 
     /**
-     * Function to update PSK with new timestamp by using SmartCard-HSM.
+     * Function to enter pin to SmartCardHSMCardService so Session is started which is used for all HSM operations.
+     * The session is ended with the closing of the tunnel.
      */
-    private fun hsmOperation(timestamp: String, tunnel: ObservableTunnel) {
+    private fun enterPin(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager) {
         /* Open Dialog window for Pin */
         val edittext = EditText(mContext)
         edittext.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -134,11 +178,10 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         /* On positive button press of dialog the timestamp is signed with HSM and newPSK loaded into backend with Pin from edittext */
         alertDialogBuilder.setPositiveButton("Enter") { _, _ ->
             val pin = edittext.text.toString()
-            val hsmManager =
-                HWHSMManager(mContext)
-            val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, pin, timestamp, 0x3)
-            val config = tunnel.config ?: return@setPositiveButton
-            loadNewPSK(config, newPSK)
+            /* Verify Pin for SmartCard-HSM */
+            hsmManager.checkPin(pin, schsmcs)
+            /* Set run to true so monitoring starts */
+            run.set(true)
             /* Delete pin notification if user goes to app without using notification */
             val notificationManager =
                 mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
@@ -154,17 +197,22 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     }
 
     /**
-     * Function to check if app is in background. HWApplication.isActivityVisible() is defined in HWApplication class.
+     * Function to update PSK with new timestamp by using SmartCard-HSM.
      */
-    private fun isAppInForeground(): Boolean {
-        return HWApplication.isActivityVisible()
+    private fun hsmOperation(timestamp: String) {
+        val hsmManager = HWHSMManager(mContext)
+        /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
+        val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, schsmcs, timestamp, 0x3)
+        /* Load newPSK into GoBackend */
+        val config = mTunnel!!.config ?: return
+        loadNewPSK(config, newPSK)
     }
 
     /**
      * Function to update PSK with new timestamp by using Android KeyStore.
      */
     @RequiresApi(Build.VERSION_CODES.O)
-    private suspend fun keyStoreOperation(timestamp: String, tunnel: ObservableTunnel) {
+    private suspend fun keyStoreOperation(timestamp: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             /* if app is in background -> Notification is sent and startBiometricPrompt set to true
             * setBiometricPrompt is checked in onResume() of BaseFragment where keyStoreOperation is called */
@@ -174,8 +222,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             /* if app is in foreground -> keyStoreOperation direct */
             }else{
                 val keyStoreManager = HWKeyStoreManager(mContext)
-                val newPSK = keyStoreManager.keyStoreOperation(timestamp, "rsa_key", tunnel, this)
-                val config = tunnel.getConfigAsync()
+                val newPSK = keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+                val config = mTunnel!!.getConfigAsync()
                 /* delay to make sure that config is loaded */
                 // TODO: find better solution
                 delay(500)
@@ -251,6 +299,14 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         }
 
         mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build())
+    }
+
+
+    /**
+     * Function to check if app is in background. HWApplication.isActivityVisible() is defined in HWApplication class.
+     */
+    private fun isAppInForeground(): Boolean {
+        return HWApplication.isActivityVisible()
     }
 
     /**

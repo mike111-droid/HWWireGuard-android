@@ -231,19 +231,14 @@ public class HWHSMManager {
     /**
      * Function to perform either AES or RSA operation on the HSM.
      * @param keyType: Specifies whether to use KeyType.AES or KeyType.RSA.
-     * @param pin    : String with pin for HSM.
      * @param init   : Input data.
      * @param keyID  : Slot ID of the key to use.
      * @return       : New PSK key.
      */
-    public Key hsmOperation(final KeyType keyType, final String pin, final String init, final byte keyID) {
+    public Key hsmOperation(final KeyType keyType, final SmartCardHSMCardService schsmcs, final String init, final byte keyID) {
         try {
             /* Startup card and get SmartCardHSMCardService */
-            final SmartCardHSMCardService schsmcs = getSmartCardHSMCardService();
             if (schsmcs == null) return null;
-
-            /* Verify the PIN */
-            checkPin(pin, schsmcs);
 
             /* init to bytes */
             final byte[] data = init.getBytes();
@@ -268,12 +263,6 @@ public class HWHSMManager {
         } catch (final Exception e) {
             Log.i(TAG, Log.getStackTraceString(e));
             return null;
-        } finally {
-            try {
-                SmartCard.shutdown();
-            } catch (final Exception e) {
-                Log.i(TAG, Log.getStackTraceString(e));
-            }
         }
     }
 
@@ -282,7 +271,7 @@ public class HWHSMManager {
      * @param bytes: Byte array with key.
      * @return     : Key.
      */
-    private static Key bytesToKey(final byte[] bytes) throws KeyFormatException {
+    public Key bytesToKey(final byte[] bytes) throws KeyFormatException {
         final StringBuilder strSig = new StringBuilder();
         for (final byte aByte : bytes) {
             strSig.append(String.format("%02x", aByte));
@@ -295,7 +284,7 @@ public class HWHSMManager {
      * @param data: Byte array for input.
      * @return    : Byte array with output.
      */
-    private static byte[] sha256(final byte[] data) throws NoSuchAlgorithmException {
+    public byte[] sha256(final byte[] data) throws NoSuchAlgorithmException {
         final MessageDigest sha256 = MessageDigest.getInstance("SHA256");
         sha256.update(data);
         return sha256.digest();
@@ -306,7 +295,7 @@ public class HWHSMManager {
      * @param pin    : String with pin for SmartCard-HSM.
      * @param schsmcs: SmartCardHSMCardService for operations on SmartCard-HSM.
      */
-    private static void checkPin(final String pin, final SmartCardHSMCardService schsmcs) throws Exception {
+    public void checkPin(final String pin, final SmartCardHSMCardService schsmcs) throws Exception {
         Log.i(TAG, "Verifying PIN...");
         if(!schsmcs.verifyPassword(null, 0, pin.getBytes())) {
             Log.i(TAG, "PIN is incorrect. More than 3 false pins lead to locked devices!");
@@ -317,7 +306,7 @@ public class HWHSMManager {
     /**
      * Function to return SmartCardHSMService.
      */
-    @Nullable private SmartCardHSMCardService getSmartCardHSMCardService() throws OpenCardPropertyLoadingException, ClassNotFoundException, CardServiceException, CardTerminalException {
+    @Nullable public SmartCardHSMCardService getSmartCardHSMCardService() throws OpenCardPropertyLoadingException, ClassNotFoundException, CardServiceException, CardTerminalException {
         /* Startup */
         Log.i(TAG, "OCF startup...");
         SmartCard.startup();
@@ -359,7 +348,7 @@ public class HWHSMManager {
      * @param keyID  : Slot of key to be used.
      * @return       : Byte array with signature.
      */
-    private byte[] hsmOperationRSA(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
+    public byte[] hsmOperationRSA(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
         /* RSA operation on HSM */
         SmartCardHSMRSAKey rsa2048Key = new SmartCardHSMRSAKey(keyID, "RSA-v1-5-SHA-256", (short) 2048);
         return schsmcs.signHash(rsa2048Key, "SHA256withRSA", "PKCS1_V15", digest);
