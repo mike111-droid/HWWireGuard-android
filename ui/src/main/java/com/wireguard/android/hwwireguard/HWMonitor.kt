@@ -14,6 +14,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Debug
 import android.text.InputType
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
@@ -202,7 +203,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private fun hsmOperation(timestamp: String) {
         val hsmManager = HWHSMManager(mContext)
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
+        //Debug.startMethodTracing("demo.trace")
         val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, schsmcs, timestamp, 0x3)
+        //Debug.stopMethodTracing()
         /* Load newPSK into GoBackend */
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, newPSK)
@@ -222,7 +225,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             /* if app is in foreground -> keyStoreOperation direct */
             }else{
                 val keyStoreManager = HWKeyStoreManager(mContext)
+                //Debug.startMethodTracing("demo.trace")
                 val newPSK = keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+                //Debug.stopMethodTracing()
                 val config = mTunnel!!.getConfigAsync()
                 /* delay to make sure that config is loaded */
                 // TODO: find better solution

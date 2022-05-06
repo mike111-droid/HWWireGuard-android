@@ -362,8 +362,10 @@ public class HWHSMManager {
      * @return       : Byte array with signature.
      */
     private byte[] hsmOperationAES(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
+        /* 0x10 is AES CBC Encrypt */
+        return schsmcs.deriveSymmetricKey(keyID, (byte) 0x10, digest);
         /* AES operation on HSM. APDU package according to documentation. */
-        SmartCardHSMKey aesKey = new SmartCardHSMKey(keyID, "AES_KEY", (short) 256, "AES");
+        /*SmartCardHSMKey aesKey = new SmartCardHSMKey(keyID, "AES_KEY", (short) 256, "AES");
         int length = digest.length;
         CommandAPDU com = new CommandAPDU(9 + length);
         com.append((byte) -128);
@@ -380,6 +382,6 @@ public class HWHSMManager {
         com.append((byte) 0);
         Log.i(TAG, "com: " + Arrays.toString(com.getBytes()));
         final ResponseAPDU rsp = schsmcs.sendCommandAPDU(com);
-        return rsp.data();
+        return rsp.data();*/
     }
 }
