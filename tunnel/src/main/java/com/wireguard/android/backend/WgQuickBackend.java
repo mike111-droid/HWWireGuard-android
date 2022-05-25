@@ -198,5 +198,9 @@ public final class WgQuickBackend implements Backend {
     public void addConf(Config config) {
         // TODO: Implement with addconf for device with Kernel support -> rooted device necessary
     }
+    @Override
+    public void addPSK(Config config) {
+        // TODO: Implement with addconf for device with Kernel support -> rooted device necessary
+    }
     /* Custom change end */
 }

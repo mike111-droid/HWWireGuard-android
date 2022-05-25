@@ -40,17 +40,17 @@ public class Statistics {
     }
 
     /* Custom change begin */
-    public Map<Key, Integer> handshakeAttempts = new HashMap<>();
+    public HashMap<Key, Integer> handshakeAttempts = new HashMap<>();
     public void addHandshakeAttempts(Key key, int handshakeAttempts) {
         this.handshakeAttempts.put(key, handshakeAttempts);
     }
 
-    public Map<Key, Integer> lastHandshakeTime = new HashMap<>();
+    public HashMap<Key, Integer> lastHandshakeTime = new HashMap<>();
     public void addLastHandshakeTime(Key key, int lastHandshakeTime) {
         this.lastHandshakeTime.put(key, lastHandshakeTime);
     }
 
-    private Map<Key, Key> presharedKey = new HashMap<>();
+    private HashMap<Key, Key> presharedKey = new HashMap<>();
     void addPresharedKey(final Key key, final Key psk) {
         presharedKey.put(key, psk);
     }

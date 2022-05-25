@@ -106,8 +106,8 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }
 
             /* Custom change begin */
-            //val keyStoreManager = HWKeyStoreManager(context)
-            //keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
+            val keyStoreManager = HWKeyStoreManager(context)
+            keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
             //keyStoreManager.deleteKey("rsa_key")
 
             if(PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
@@ -118,6 +118,8 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                 } else {
                     Log.i(TAG, "Tunnel state is down, so we stop the Monitor.")
                     monitor.stopMonitor()
+                    /* reset monitor */
+                    monitor = HWMonitor(requireContext(), requireActivity(), monitor.mFragment)
                 }
             }else{
                 if(checked) {

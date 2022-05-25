@@ -30,11 +30,13 @@ import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.hwwireguard.crypto.HWHSMManager
 import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey
 import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
+import com.wireguard.android.hwwireguard.crypto.HWRatchetManager
 import com.wireguard.android.hwwireguard.crypto.HWTimestamp
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.applicationScope
 import com.wireguard.config.Config
+import com.wireguard.config.Peer
 import com.wireguard.crypto.Key
 import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMCardService
 import kotlinx.coroutines.delay
@@ -64,8 +66,15 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /* isTunnelSet makes sure that mTunnel is only set once */
     private var isTunnelSet: Boolean = false
     /* SmartCardHSMCardService is necessary for all interactions with HSM */
-    var schsmcs: SmartCardHSMCardService? = null
+    private var schsmcs: SmartCardHSMCardService? = null
+    /* List with lastHandshakeTime of peer */
+    var mLastHandshakeTime: HashMap<Key, Int> = HashMap()
+    /* Bool to check if already ratcheted */
+    private var didRatchet = false
+    /* save current initPSK */
+    lateinit var initPSK: Key
 
+    // TODO: Clean up
     /**
      * Function to start the monitor process. Is stop with AtomicBoolean run. mTunnel must be set before.
      */
@@ -85,7 +94,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                     schsmcs?.let { enterPin(it, hsmManager) }
                     /* Wait for user to enter pin */
                     while(!run.get()) {
-                        delay(1000)
+                        delay(2500)
                     }
                 }else if(hwBackend == "AndroidKeyStore") {
                     /* Set run to true so monitoring starts */
@@ -127,18 +136,19 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
 
     /**
      * Function to monitor for new timestamp. If new timestamp then calculate newPSK and load it to backend.
+     * With every successful handshake the psk is ratcheted.
      */
     private suspend fun monitor() {
-        Log.i(TAG, "Checking tunnel: $mTunnel")
+        //Log.i(TAG, "Checking tunnel: $mTunnel")
         newTimestamp = HWTimestamp().timestamp.toString()
+        /* Check which mode is selected in preferences */
+        val pref = PreferencesPreferenceDataStore(
+            applicationScope,
+            HWApplication.getPreferencesDataStore()
+        )
+        val hwBackend = pref.getString("dropdown", "none")
         /* Check if timestamp changed */
         if(newTimestamp != oldTimestamp) {
-            /* Check which mode is selected in preferences */
-            val pref = PreferencesPreferenceDataStore(
-                applicationScope,
-                HWApplication.getPreferencesDataStore()
-            )
-            val hwBackend = pref.getString("dropdown", "none")
             /* Check which mode is selected */
             if (hwBackend == "SmartCardHSM") {
                 Log.i(TAG, "Using SmartCard-HSM...")
@@ -157,6 +167,60 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             }
             /* update reference timestamp */
             oldTimestamp = newTimestamp
+        }
+        /* Check if handshake successful
+        * -> if yes: ratchet with oldPSK
+        * -> if no:  continue */
+        val config = mTunnel!!.config
+        if(config == null) {
+            Log.i(TAG, "CONFIG is null")
+            return
+        }
+        val stats = HWApplication.getBackend().getStatistics(mTunnel)
+        val lastHandshakeTime = stats.lastHandshakeTime
+        for(peer in config.peers) {
+            if(mLastHandshakeTime[peer.publicKey] == null) {
+                mLastHandshakeTime[peer.publicKey] = 0
+            }
+            //Log.i(TAG, "mLastHandshakeTime ${mLastHandshakeTime[peer.publicKey]}")
+            //Log.i(TAG, "lastHandshakeTime ${lastHandshakeTime[peer.publicKey]}")
+            if(peer != null && lastHandshakeTime[peer.publicKey] != mLastHandshakeTime[peer.publicKey]) {
+                lastHandshakeTime[peer.publicKey]?.let { mLastHandshakeTime.put(peer.publicKey, it) }
+                Log.i(TAG, "handshake was successful... Do ratchet...")
+                ratchet(config, peer)
+            }
+            /* Check if failed handshake attempts higher than 6 */
+            var handshakeAttempt = stats.handshakeAttempts[peer.publicKey]
+            if (handshakeAttempt != null) {
+                if(handshakeAttempt == 0) {
+                    didRatchet = false
+                }
+                if(handshakeAttempt >= 6 && !didRatchet && handshakeAttempt != 20) {
+                    /* Reset PSK for exact peer */
+                    var copyConfig = config
+                    Log.i(TAG, "We are out of sync. So reset oldTimestamp")
+                    Log.i(TAG, "initPSK: ${initPSK.toBase64()}")
+                    loadNewPSK(copyConfig, peer, initPSK)
+                }
+            }
+        }
+    }
+
+    private fun ratchet(config: Config, peer: Peer) {
+        var configCopy = config
+        val ratchetManager = HWRatchetManager()
+        for((counter, peerIter) in config.peers.withIndex()) {
+            if(peerIter == peer) {
+                val psk = configCopy.peers[counter].preSharedKey.get()
+                val newPSK = ratchetManager.ratchet(psk)
+                if(newPSK == null) {
+                    Log.i(TAG, "newPSK return as null from ratchetManager")
+                    loadNewPSK(configCopy, peer, initPSK)
+                }else{
+                    Log.i(TAG, "newPSK is ${newPSK.toBase64()}")
+                    loadNewPSK(configCopy, peer, newPSK)
+                }
+            }
         }
     }
 
@@ -205,6 +269,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
         //Debug.startMethodTracing("demo.trace")
         val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, schsmcs, timestamp, 0x3)
+        initPSK = newPSK
         //Debug.stopMethodTracing()
         /* Load newPSK into GoBackend */
         val config = mTunnel!!.config ?: return
@@ -227,6 +292,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 val keyStoreManager = HWKeyStoreManager(mContext)
                 //Debug.startMethodTracing("demo.trace")
                 val newPSK = keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+                initPSK = newPSK
                 //Debug.stopMethodTracing()
                 val config = mTunnel!!.getConfigAsync()
                 /* delay to make sure that config is loaded */
@@ -254,6 +320,20 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 config.peers[counter].setPreSharedKey(newPSK)
                 HWApplication.getBackend().addConf(config)
                 Log.i(TAG, "PSK after: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peer.publicKey]!!.toBase64())
+            }
+        }
+    }
+
+    private fun loadNewPSK(config: Config, peer: Peer, newPSK: Key) {
+        mActivity.applicationScope.launch {
+            delay(1000)
+            for((counter, peerIter) in config.peers.withIndex()) {
+                if(peer == peerIter) {
+                    Log.i(TAG, "PSK before: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peer.publicKey]!!.toBase64())
+                    config.peers[counter].setPreSharedKey(newPSK)
+                    HWApplication.getBackend().addPSK(config)
+                    Log.i(TAG, "PSK after: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peer.publicKey]!!.toBase64())
+                }
             }
         }
     }

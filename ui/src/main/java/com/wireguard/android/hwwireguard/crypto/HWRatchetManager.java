@@ -31,7 +31,7 @@ public class HWRatchetManager {
      */
     public Key ratchet(Key key) {
         String str = key.toBase64();
-        MessageDigest digest = null;
+        MessageDigest digest;
         try {
             digest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
@@ -39,7 +39,7 @@ public class HWRatchetManager {
             return null;
         }
         byte[] hash = digest.digest(str.getBytes(StandardCharsets.UTF_8));
-        Key ret = null;
+        Key ret;
         try {
             ret = Key.fromHex(toHexString(hash));
         } catch (KeyFormatException e) {

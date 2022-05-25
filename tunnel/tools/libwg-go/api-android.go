@@ -73,6 +73,25 @@ func init() {
 }
 
 /* Custom change begin */
+// TODO: sync_conf function
+
+/* loadPSK triggers new handshake -> alrigth for first psk but not handshake-update-psk */
+//export loadConfig
+func loadConfig(tunnelHandle int32, settings string) int32 {
+    tag := cstring("WireGuard/GoBackend/" + "loadConfig")
+    logger := &device.Logger{
+        Verbosef: AndroidLogger{level: C.ANDROID_LOG_DEBUG, tag: tag}.Printf,
+    	Errorf:   AndroidLogger{level: C.ANDROID_LOG_ERROR, tag: tag}.Printf,
+    }
+
+    handle, ok := tunnelHandles[tunnelHandle]
+    if !ok {
+    	return -1
+    }
+    logger.Errorf("tunnelHandle: %d", handle)
+    handle.device.IpcSet(settings)
+    return 0
+}
 //export loadPSK
 func loadPSK(tunnelHandle int32, settings string) int32 {
     tag := cstring("WireGuard/GoBackend/" + "loadPSK")
@@ -86,7 +105,7 @@ func loadPSK(tunnelHandle int32, settings string) int32 {
     	return -1
     }
     logger.Errorf("tunnelHandle: %d", handle)
-    handle.device.IpcSet(settings)
+    handle.device.IpcSetPSK(settings)
     return 0
 }
 /* Custom change end */

@@ -86,8 +86,16 @@ public final class GoBackend implements Backend {
     /* Custom change begin */
     private static native int loadPSK(int handle, String settings);
 
+    private static native int loadConfig(int handle, String settings);
+
     @Override
     public void addConf(Config config) {
+        int ret = loadConfig(currentTunnelHandle, config.toWgUserspaceString());
+        Log.i(TAG, "ret: " + ret);
+    }
+
+    @Override
+    public void addPSK(Config config) {
         int ret = loadPSK(currentTunnelHandle, config.toWgUserspaceString());
         Log.i(TAG, "ret: " + ret);
     }

@@ -18,6 +18,7 @@ import androidx.annotation.Nullable;
 
 @NonNullForAll
 public interface Backend {
+
     /**
      * Enumerate names of currently-running tunnels.
      *
@@ -67,5 +68,6 @@ public interface Backend {
 
     /* Custom change begin */
     void addConf(Config config);
+    void addPSK(Config config);
     /* Custom change end */
 }
