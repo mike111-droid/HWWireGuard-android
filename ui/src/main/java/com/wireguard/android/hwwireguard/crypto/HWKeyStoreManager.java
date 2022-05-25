@@ -406,6 +406,7 @@ public class HWKeyStoreManager {
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                         .setUserAuthenticationRequired(true)
+                        /* one hour -> maybe higher better */
                         .setUserAuthenticationValidityDurationSeconds(60*60)
                         .build());
     }

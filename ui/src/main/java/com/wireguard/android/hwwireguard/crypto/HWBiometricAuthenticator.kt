@@ -62,6 +62,7 @@ class HWBiometricAuthenticator {
                 if(result == null) return
                 val config = tunnel.config ?: return
                 val newPSK = HWKeyStoreManager.bytesToKey(HWKeyStoreManager.sha256(result))
+                monitor.initPSK = newPSK
                 Log.i(TAG, "Loading PSK " + newPSK.toBase64())
                 monitor.loadNewPSK(config, newPSK)
             }
