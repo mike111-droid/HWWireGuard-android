@@ -440,15 +440,6 @@ public class HWKeyStoreManager {
     }
 
     /**
-     * Function to authenticate for AndroidKeyStores.
-     * @param fragment
-     * @param context
-     */
-    public void authenticate(Fragment fragment, Context context, HWMonitor monitor) {
-        biometricAuthenticator.authenticate(fragment, context, monitor);
-    }
-
-    /**
      * Function to perform the AndroidKeyStore operation (AES_ECB or RSA).
      * @param alias  : Alias of key to use.
      * @param init   : Input to sign or encrypt.

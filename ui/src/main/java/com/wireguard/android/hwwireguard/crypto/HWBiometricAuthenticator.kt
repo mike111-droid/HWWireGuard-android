@@ -86,42 +86,6 @@ class HWBiometricAuthenticator {
         prompt.authenticate(promptInfo)
     }
 
-    fun authenticate(
-        fragment: Fragment,
-        context: Context,
-        monitor: HWMonitor
-    ) {
-        val keyStore = KeyStore.getInstance("AndroidKeyStore")
-        keyStore.load(null)
-        val authCallback = object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                super.onAuthenticationError(errorCode, errString)
-                Log.w(TAG, "onAuthenticationError $errorCode $errString")
-            }
-
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                super.onAuthenticationSucceeded(result)
-                monitor.run.set(true)
-                Log.d(TAG, "onAuthenticationSucceeded")
-            }
-
-            override fun onAuthenticationFailed() {
-                super.onAuthenticationFailed()
-                Log.w(TAG, "onAuthenticationFailed")
-            }
-        }
-        val prompt = BiometricPrompt(
-            fragment,
-            ContextCompat.getMainExecutor(context),
-            authCallback)
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock your device to use KeyStore keys")
-            .setConfirmationRequired(true)
-            .setDeviceCredentialAllowed(true)
-            .build()
-        prompt.authenticate(promptInfo)
-    }
-
     companion object {
         private const val TAG = "WireGuard/HWBiometricAuthenticator"
     }

@@ -14,20 +14,19 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.Debug
 import android.text.InputType
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
 import android.widget.EditText
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
+import androidx.biometric.BiometricPrompt
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
-import com.wireguard.android.hwwireguard.crypto.HWBiometricAuthenticator
 import com.wireguard.android.hwwireguard.crypto.HWHSMManager
 import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey
 import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
@@ -43,6 +42,7 @@ import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMCardService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import opencard.core.service.SmartCard
+import java.security.KeyStore
 import java.util.concurrent.atomic.AtomicBoolean
 
 
@@ -55,7 +55,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         const val NOTIFICATION_ID = 0
     }
 
-    var run: AtomicBoolean = AtomicBoolean(false)
+    private var run: AtomicBoolean = AtomicBoolean(false)
     private var oldTimestamp: String? = null
     var newTimestamp: String? = null
     val mContext: Context = context
@@ -67,13 +67,13 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /* isTunnelSet makes sure that mTunnel is only set once */
     private var isTunnelSet: Boolean = false
     /* SmartCardHSMCardService is necessary for all interactions with HSM */
-    private var schsmcs: SmartCardHSMCardService? = null
+    private var smartCardService: SmartCardHSMCardService? = null
     /* List with lastHandshakeTime of peer */
     var mLastHandshakeTime: HashMap<Key, Int> = HashMap()
-    /* Bool to check if already ratcheted */
-    private var didRatchet = false
     /* save current initPSK */
     lateinit var initPSK: Key
+    /* variable to save pref at the start tunnel */
+    lateinit var mPref: PreferencesPreferenceDataStore
 
     // TODO: Clean up
     /**
@@ -81,27 +81,15 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
-        val pref = PreferencesPreferenceDataStore(
-            applicationScope,
-            HWApplication.getPreferencesDataStore()
-        )
         mActivity.applicationScope.launch {
+            mPref = PreferencesPreferenceDataStore(
+                applicationScope,
+                HWApplication.getPreferencesDataStore()
+            )
             try {
-                val hwBackend = pref.getString("dropdown", "none")
-                if (hwBackend == "SmartCardHSM") {
-                    /* Create session for HSM operations */
-                    val hsmManager = HWHSMManager(mContext)
-                    schsmcs = hsmManager.smartCardHSMCardService
-                    schsmcs?.let { enterPin(it, hsmManager) }
-                    /* Wait for user to enter pin */
-                    while(!run.get()) {
-                        delay(2500)
-                    }
-                }else if(hwBackend == "AndroidKeyStore") {
-                    authenticate()
-                    while(!run.get()) {
-                        delay(2500)
-                    }
+                authenticate()
+                while(!run.get()) {
+                    delay(2500)
                 }
                 /* Start monitor process that updates PSK with every changing timestamp */
                 Log.i(TAG, "Starting Monitor...")
@@ -114,7 +102,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 Log.i(TAG, Log.getStackTraceString(e));
             } finally {
                 /* Make sure to shutdown SmartCard-HSM */
-                val hwBackend = pref.getString("dropdown", "none")
+                val hwBackend = mPref.getString("dropdown", "none")
                 if (hwBackend == "SmartCardHSM") {
                     try {
                         Log.i(TAG, "Shutting down.")
@@ -128,138 +116,24 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     }
 
     /**
-     * Function to stop monitor process.
+     * Function to authenticate user at start of tunnel.
      */
-    suspend fun stopMonitor() {
-        Log.i(TAG, "inside stopMonitor")
-        /* Reset oldTimestamp to null in case tunnel is turned on again */
-        oldTimestamp = null
-        /* Set run to false so while-loop in startMonitor() is ended */
-        run.set(false)
-        delay(3000)
-    }
-
-    /**
-     * Function to monitor for new timestamp. If new timestamp then calculate newPSK and load it to backend.
-     * With every successful handshake the psk is ratcheted.
-     */
-    private suspend fun monitor() {
-        //Log.i(TAG, "Checking tunnel: $mTunnel")
-        newTimestamp = HWTimestamp().timestamp.toString()
-        /* Check which mode is selected in preferences */
-        val pref = PreferencesPreferenceDataStore(
-            applicationScope,
-            HWApplication.getPreferencesDataStore()
-        )
-        val hwBackend = pref.getString("dropdown", "none")
-        /* Check if timestamp changed */
-        if(newTimestamp != oldTimestamp) {
-            /* Check which mode is selected */
-            if (hwBackend == "SmartCardHSM") {
-                Log.i(TAG, "Using SmartCard-HSM...")
-                /* reload PSK with newTimestamp signed by SmartCard-HSM */
-                hsmOperation(newTimestamp!!)
-            } else if (hwBackend == "AndroidKeyStore") {
-                Log.i(TAG, "Using AndroidKeyStore...")
-                /* Check for minimum version to run app */
-                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    /* reload PSK with newTimestamp signed by Android KeyStore */
-                    keyStoreOperation(newTimestamp!!)
-                }else{
-                    Toast.makeText(mContext, "Android version not high enough for key usage.", Toast.LENGTH_LONG).show()
-                    Log.i(TAG, "Android version not high enough for key usage.")
-                }
-            }
-            /* update reference timestamp */
-            oldTimestamp = newTimestamp
-        }
-        /* Check if handshake successful
-        * -> if yes: ratchet with oldPSK
-        * -> if no:  continue */
-        val config = mTunnel!!.config
-        if(config == null) {
-            Log.i(TAG, "CONFIG is null")
-            return
-        }
-        val stats = HWApplication.getBackend().getStatistics(mTunnel)
-        val lastHandshakeTime = stats.lastHandshakeTime
-        for(peer in config.peers) {
-            if(mLastHandshakeTime[peer.publicKey] == null) {
-                mLastHandshakeTime[peer.publicKey] = 0
-            }
-            //Log.i(TAG, "mLastHandshakeTime ${mLastHandshakeTime[peer.publicKey]}")
-            //Log.i(TAG, "lastHandshakeTime ${lastHandshakeTime[peer.publicKey]}")
-            if(peer != null && lastHandshakeTime[peer.publicKey] != mLastHandshakeTime[peer.publicKey]) {
-                lastHandshakeTime[peer.publicKey]?.let { mLastHandshakeTime.put(peer.publicKey, it) }
-                Log.i(TAG, "handshake was successful... Do ratchet...")
-                ratchet(config, peer)
-            }
-            /* Check if failed handshake attempts higher than 6 */
-            var handshakeAttempt = stats.handshakeAttempts[peer.publicKey]
-            if (handshakeAttempt != null) {
-                if(handshakeAttempt == 0) {
-                    didRatchet = false
-                }
-                if(handshakeAttempt == 7 && handshakeAttempt == 9) {
-                    /* Reset PSK for exact peer */
-                    var copyConfig = config
-                    Log.i(TAG, "We are out of sync. So reset oldTimestamp")
-                    Log.i(TAG, "initPSK: ${initPSK.toBase64()}")
-                    loadNewPSK(copyConfig, peer, initPSK)
-                }
-                /* if 10 failed handshakes -> reload for specific peer */
-                if(handshakeAttempt == 13) {
-                    newTimestamp = HWTimestamp().timestamp.toString()
-                    if (hwBackend == "SmartCardHSM") {
-                        Log.i(TAG, "Using SmartCard-HSM...")
-                        /* reload PSK with newTimestamp signed by SmartCard-HSM */
-                        hsmOperation(newTimestamp!!, peer)
-                    } else if (hwBackend == "AndroidKeyStore") {
-                        Log.i(TAG, "Using AndroidKeyStore...")
-                        /* Check for minimum version to run app */
-                        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            /* reload PSK with newTimestamp signed by Android KeyStore */
-                            keyStoreOperation(newTimestamp!!, peer)
-                        }else{
-                            Toast.makeText(mContext, "Android version not high enough for key usage.", Toast.LENGTH_LONG).show()
-                            Log.i(TAG, "Android version not high enough for key usage.")
-                        }
-                    }
-                    /* update reference timestamp */
-                    oldTimestamp = newTimestamp
-                }
-            }
-        }
-    }
-
-    private fun ratchet(config: Config, peer: Peer) {
-        var configCopy = config
-        val ratchetManager = HWRatchetManager()
-        for((counter, peerIter) in config.peers.withIndex()) {
-            if(peerIter == peer) {
-                val psk = configCopy.peers[counter].preSharedKey.get()
-                val newPSK = ratchetManager.ratchet(psk)
-                if(newPSK == null) {
-                    Log.i(TAG, "newPSK return as null from ratchetManager")
-                    loadNewPSK(configCopy, peer, initPSK)
-                }else{
-                    Log.i(TAG, "newPSK is ${newPSK.toBase64()}")
-                    loadNewPSK(configCopy, peer, newPSK)
-                }
-            }
-        }
-    }
-
     private fun authenticate() {
-        val keyStoreManager = HWKeyStoreManager(mContext)
-        keyStoreManager.authenticate(mFragment, mContext, this)
+        val hwBackend = mPref.getString("dropdown", "none")
+        if (hwBackend == "SmartCardHSM") {
+            /* Create session for HSM operations */
+            val hsmManager = HWHSMManager(mContext)
+            smartCardService = hsmManager.smartCardHSMCardService
+            smartCardService?.let { authenticateHSM(it, hsmManager) }
+        }else if(hwBackend == "AndroidKeyStore") {
+            authenticateKeyStore()
+        }
     }
-
     /**
      * Function to enter pin to SmartCardHSMCardService so Session is started which is used for all HSM operations.
      * The session is ended with the closing of the tunnel.
      */
-    private fun enterPin(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager) {
+    private fun authenticateHSM(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager) {
         /* Open Dialog window for Pin */
         val edittext = EditText(mContext)
         edittext.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -291,6 +165,154 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             }
         }
     }
+    /**
+     * Function to authenticate AndroidKeyStore.
+     */
+    private fun authenticateKeyStore() {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore")
+        keyStore.load(null)
+        val authCallback = object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                super.onAuthenticationError(errorCode, errString)
+                Log.w(TAG, "onAuthenticationError $errorCode $errString")
+            }
+
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                super.onAuthenticationSucceeded(result)
+                run.set(true)
+                Log.d(TAG, "onAuthenticationSucceeded")
+            }
+
+            override fun onAuthenticationFailed() {
+                super.onAuthenticationFailed()
+                Log.w(TAG, "onAuthenticationFailed")
+            }
+        }
+        val prompt = BiometricPrompt(
+            mFragment,
+            ContextCompat.getMainExecutor(mContext),
+            authCallback)
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Unlock your device to use KeyStore keys")
+            .setConfirmationRequired(true)
+            .setDeviceCredentialAllowed(true)
+            .build()
+        prompt.authenticate(promptInfo)
+    }
+
+    /**
+     * Function to stop monitor process.
+     */
+    suspend fun stopMonitor() {
+        Log.i(TAG, "inside stopMonitor")
+        /* Reset oldTimestamp to null in case tunnel is turned on again */
+        oldTimestamp = null
+        /* Set run to false so while-loop in startMonitor() is ended */
+        run.set(false)
+        delay(1000)
+    }
+
+    /**
+     * Function to monitor for new timestamp. If new timestamp then calculate newPSK and load it to backend.
+     * With every successful handshake the psk is ratcheted.
+     */
+    private suspend fun monitor() {
+        newTimestamp = HWTimestamp().timestamp.toString()
+        val hwBackend = mPref.getString("dropdown", "none")
+        /* Check if timestamp changed */
+        if(newTimestamp != oldTimestamp) {
+            Log.i(TAG, "newTimestamp is a different one from oldTimestamp...")
+            /* Check which mode is selected */
+            if (hwBackend == "SmartCardHSM") {
+                Log.i(TAG, "Using SmartCard-HSM...")
+                /* reload PSK with newTimestamp signed by SmartCard-HSM */
+                hsmOperation(newTimestamp!!)
+            } else if (hwBackend == "AndroidKeyStore") {
+                Log.i(TAG, "Using AndroidKeyStore...")
+                /* Check for minimum version to run app */
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    /* reload PSK with newTimestamp signed by Android KeyStore */
+                    keyStoreOperation(newTimestamp!!)
+                }
+            }
+            /* update reference timestamp */
+            oldTimestamp = newTimestamp
+        }
+        /* Check if handshake successful
+        * -> if yes: ratchet with oldPSK
+        * -> if no:  continue */
+        val config = mTunnel!!.config
+        if(config == null) {
+            Log.i(TAG, "CONFIG is null")
+            return
+        }
+        val stats = HWApplication.getBackend().getStatistics(mTunnel)
+        val lastHandshakeTime = stats.lastHandshakeTime
+        for(peer in config.peers) {
+            if(mLastHandshakeTime[peer.publicKey] == null) {
+                mLastHandshakeTime[peer.publicKey] = 0
+            }
+            if(peer != null && lastHandshakeTime[peer.publicKey] != mLastHandshakeTime[peer.publicKey]) {
+                lastHandshakeTime[peer.publicKey]?.let { mLastHandshakeTime.put(peer.publicKey, it) }
+                Log.i(TAG, "handshake was successful... Do ratchet...")
+                ratchet(config, peer)
+            }
+            /* Check failed handshake attempts */
+            var handshakeAttempt = stats.handshakeAttempts[peer.publicKey]
+            if (handshakeAttempt != null) {
+                /* mod 20 in case handshakeAttempts go higher than 20 */
+                handshakeAttempt = handshakeAttempt.mod(20)
+                /* if handshakeAttempt%20==6 => reset PSK with saved initPSK */
+                if(handshakeAttempt == 6) {
+                    /* Reset PSK for exact peer */
+                    var copyConfig = config
+                    Log.i(TAG, "We are out of sync. So reset oldTimestamp")
+                    Log.i(TAG, "initPSK: ${initPSK.toBase64()}")
+                    loadNewPSK(copyConfig, peer, initPSK)
+                }
+                /* if handshakeAttempt%20==13 => reset PSK with newly calculated PSK from current timestamp */
+                if(handshakeAttempt == 13) {
+                    newTimestamp = HWTimestamp().timestamp.toString()
+                    if (hwBackend == "SmartCardHSM") {
+                        Log.i(TAG, "Using SmartCard-HSM...")
+                        /* reload PSK with newTimestamp signed by SmartCard-HSM */
+                        hsmOperation(newTimestamp!!, peer)
+                    } else if (hwBackend == "AndroidKeyStore") {
+                        Log.i(TAG, "Using AndroidKeyStore...")
+                        /* Check for minimum version to run app */
+                        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            /* reload PSK with newTimestamp signed by Android KeyStore */
+                            keyStoreOperation(newTimestamp!!, peer)
+                        }
+                    }
+                    /* update reference timestamp */
+                    oldTimestamp = newTimestamp
+                }
+            }
+        }
+    }
+
+    /**
+     * Function to ratchet PSK for specific peer.
+     */
+    private fun ratchet(config: Config, peer: Peer) {
+        var configCopy = config
+        val ratchetManager = HWRatchetManager()
+        for((counter, peerIter) in config.peers.withIndex()) {
+            /* find specific peer */
+            if(peerIter == peer) {
+                val psk = configCopy.peers[counter].preSharedKey.get()
+                val newPSK = ratchetManager.ratchet(psk)
+                if(newPSK == null) {
+                    Log.i(TAG, "newPSK return as null from ratchetManager")
+                    loadNewPSK(configCopy, peer, initPSK)
+                }else{
+                    Log.i(TAG, "newPSK is ${newPSK.toBase64()}")
+                    loadNewPSK(configCopy, peer, newPSK)
+                }
+            }
+        }
+    }
 
     /**
      * Function to update PSK with new timestamp by using SmartCard-HSM.
@@ -299,19 +321,21 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         val hsmManager = HWHSMManager(mContext)
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
         //Debug.startMethodTracing("demo.trace")
-        val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, schsmcs, timestamp, 0x3)
+        val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
         initPSK = newPSK
         //Debug.stopMethodTracing()
         /* Load newPSK into GoBackend */
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, newPSK)
     }
-
+    /**
+     * Like hsmOperation just for specific peer.
+     */
     private fun hsmOperation(timestamp: String, peer: Peer) {
         val hsmManager = HWHSMManager(mContext)
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
         //Debug.startMethodTracing("demo.trace")
-        val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, schsmcs, timestamp, 0x3)
+        val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
         initPSK = newPSK
         //Debug.stopMethodTracing()
         /* Load newPSK into GoBackend */
@@ -351,7 +375,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             }
         }
     }
-
+    /**
+     * Like keyStoreOperation just for specific peer.
+     */
     @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun  keyStoreOperation(timestamp: String, peer: Peer) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -388,7 +414,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             }
         }
     }
-
+    /**
+     * Like loadNewPSK just for specific peer.
+     */
     private fun loadNewPSK(config: Config, peer: Peer, newPSK: Key) {
         mActivity.applicationScope.launch {
             delay(1000)

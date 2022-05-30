@@ -110,8 +110,8 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
 
             /* Custom change begin */
             val keyStoreManager = HWKeyStoreManager(context)
+            keyStoreManager.deleteKey("rsa_key")
             keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
-            //keyStoreManager.deleteKey("rsa_key")
 
             if(PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
                 if(checked) {
