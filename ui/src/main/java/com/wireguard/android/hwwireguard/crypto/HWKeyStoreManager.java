@@ -62,6 +62,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
 
 /**
  * TODO: Not all characters are allowed for key labels/alias -> make sure to filter them at UI
@@ -311,7 +312,7 @@ public class HWKeyStoreManager {
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                         .setRandomizedEncryptionRequired(false)
                         .setUserAuthenticationRequired(true)
-                        .setUserAuthenticationValidityDurationSeconds(60*60)
+                        .setUserAuthenticationValidityDurationSeconds(6*60*60)
                         .build());
     }
 
@@ -407,7 +408,7 @@ public class HWKeyStoreManager {
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                         .setUserAuthenticationRequired(true)
                         /* one hour -> maybe higher better */
-                        .setUserAuthenticationValidityDurationSeconds(60*60)
+                        .setUserAuthenticationValidityDurationSeconds(6*60*60)
                         .build());
     }
 
@@ -436,6 +437,15 @@ public class HWKeyStoreManager {
      */
     public void keyStoreOperationWithBio(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor) {
         biometricAuthenticator.keyStoreOperation(input, alias, tunnel, monitor);
+    }
+
+    /**
+     * Function to authenticate for AndroidKeyStores.
+     * @param fragment
+     * @param context
+     */
+    public void authenticate(Fragment fragment, Context context, HWMonitor monitor) {
+        biometricAuthenticator.authenticate(fragment, context, monitor);
     }
 
     /**

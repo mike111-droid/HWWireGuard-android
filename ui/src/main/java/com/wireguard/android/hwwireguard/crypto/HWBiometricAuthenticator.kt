@@ -5,9 +5,11 @@
 
 package com.wireguard.android.hwwireguard.crypto
 
+import android.content.Context
 import android.util.Log
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
 import com.wireguard.android.hwwireguard.HWMonitor
 import com.wireguard.android.model.ObservableTunnel
 import java.security.KeyStore
@@ -75,6 +77,42 @@ class HWBiometricAuthenticator {
         val prompt = BiometricPrompt(
             monitor.mFragment,
             ContextCompat.getMainExecutor(monitor.mContext),
+            authCallback)
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Unlock your device to use KeyStore keys")
+            .setConfirmationRequired(true)
+            .setDeviceCredentialAllowed(true)
+            .build()
+        prompt.authenticate(promptInfo)
+    }
+
+    fun authenticate(
+        fragment: Fragment,
+        context: Context,
+        monitor: HWMonitor
+    ) {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore")
+        keyStore.load(null)
+        val authCallback = object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                super.onAuthenticationError(errorCode, errString)
+                Log.w(TAG, "onAuthenticationError $errorCode $errString")
+            }
+
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                super.onAuthenticationSucceeded(result)
+                monitor.run.set(true)
+                Log.d(TAG, "onAuthenticationSucceeded")
+            }
+
+            override fun onAuthenticationFailed() {
+                super.onAuthenticationFailed()
+                Log.w(TAG, "onAuthenticationFailed")
+            }
+        }
+        val prompt = BiometricPrompt(
+            fragment,
+            ContextCompat.getMainExecutor(context),
             authCallback)
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle("Unlock your device to use KeyStore keys")
