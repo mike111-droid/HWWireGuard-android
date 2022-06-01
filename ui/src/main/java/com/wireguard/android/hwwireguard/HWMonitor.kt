@@ -108,6 +108,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         }
     }
 
+    /**
+     * Function to authenticate either AndroidKeyStores or SmartCard-HSM.
+     */
     private fun authenticate() {
         val hwBackend = mPref.getString("dropdown", "none")
         if (hwBackend == "SmartCardHSM") {
@@ -119,6 +122,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             authenticateKeyStore()
         }
     }
+    /**
+     * Function to authenticate AndroidKeyStore.
+     */
     private fun authenticateKeyStore() {
         val authCallback = object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
@@ -200,7 +206,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to monitor for new timestamp. If new timestamp then calculate newPSK and load it to backend.
      */
     private suspend fun monitor() {
-        Log.i(TAG, "Checking tunnel: $mTunnel")
         newTimestamp = HWTimestamp().timestamp.toString()
         /* Check if timestamp changed */
         if(newTimestamp != oldTimestamp) {
@@ -233,9 +238,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private fun hsmOperation(timestamp: String) {
         val hsmManager = HWHSMManager(mContext)
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
-        //Debug.startMethodTracing("demo.trace")
         val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
-        //Debug.stopMethodTracing()
         /* Load newPSK into GoBackend */
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, newPSK)

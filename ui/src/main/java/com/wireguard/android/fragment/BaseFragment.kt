@@ -7,6 +7,7 @@ package com.wireguard.android.fragment
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Bundle
+import android.os.Debug
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -114,9 +115,11 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                 if(checked) {
                     Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
                     monitor.setTunnel(tunnel)
+                    Debug.startMethodTracing("wireguard_v1.trace")
                     monitor.startMonitor()
                 } else {
                     Log.i(TAG, "Tunnel state is down, so we stop the Monitor.")
+                    Debug.stopMethodTracing()
                     monitor.stopMonitor()
                 }
             }else{
