@@ -77,187 +77,10 @@ public class HWKeyStoreManager {
      */
     public HWBiometricAuthenticator biometricAuthenticator = new HWBiometricAuthenticator();
     private static final String TAG = "WireGuard/KeyStoreManager";
-    private String selectedKeyLabel = "UNSELECTED";
-    private final List<HWHardwareBackedKey> keyList;
     private final Context context;
 
-    public HWKeyStoreManager(final Context context) throws IOException {
+    public HWKeyStoreManager(final Context context) {
         this.context = context;
-        keyList = new ArrayList<>();
-        loadKeys();
-    }
-
-    /**
-     * Function to set which key is selected for operation.
-     * // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
-     */
-    private void setSelectedKeyLabel(String alias) {
-        selectedKeyLabel = alias;
-        try{
-            storeKeys();
-        } catch (final IOException e) {
-            Log.i(TAG, "Failed to store updated keyList into KeyStoreKeys.txt file.");
-            Log.e(TAG, Log.getStackTraceString(e));
-        }
-    }
-
-    /**
-     * Function to return which key is selected.
-     * @return: String with alias of key that is selected.
-     */
-    public String getSelectedKey(){
-        return selectedKeyLabel;
-    }
-
-    /**
-     * Function to parse key in String format.
-     * @param keyStoreKey: String with key.
-     * @return           : HSMKey.
-     */
-    private static HWHardwareBackedKey parseKey(final String keyStoreKey) {
-        final String[] split = keyStoreKey.split(",");
-        final String label = split[0].split("=")[1];
-        final byte slot = Byte.parseByte(split[1].split("=")[1]);
-        final KeyType type = KeyType.valueOf(split[2].split("=")[1]);
-        return new HWHardwareBackedKey(HardwareType.KEYSTORE, label, slot, type);
-    }
-
-    /**
-     * Function to load the HSM keys saved into keyList.
-     */
-    private void loadKeys() throws IOException {
-        final StringBuilder stringBuilder = new StringBuilder();
-        String line;
-        final BufferedReader in;
-        try {
-            in = new BufferedReader(new FileReader(new File(context.getFilesDir(), "KeyStoreKeys.txt")));
-        }catch(final FileNotFoundException e){
-            Log.i(TAG, "File KeyStoreKeys.txt not found.");
-            Log.e(TAG, Log.getStackTraceString(e));
-            return;
-        }
-        int lineCounter = 0;
-        while((line = in.readLine()) != null) {
-            lineCounter++;
-            /* Last line contains selectedKeyLabel */
-            if(line.contains("selectedKeyLabel=")) {
-                break;
-            }
-            stringBuilder.append(line);
-        }
-        /* Check that list is not empty */
-        if(lineCounter > 1) {
-            /* List has keys */
-            assert line != null;
-            setSelectedKeyLabel(line.split("=")[1]);
-            final String[] split = stringBuilder.toString().split("\n");
-            for(final String key: split) {
-                keyList.add(parseKey(key));
-            }
-        }else{
-            /* List is empty. Make sure selectedKey is UNSELECTED. */
-            setSelectedKeyLabel("UNSELECTED");
-            storeKeys();
-        }
-        in.close();
-    }
-
-    /**
-     * Function to store the AndroidKeyStore keys into a file that later is used to load them again.
-     */
-    private void storeKeys() throws IOException {
-        final StringBuilder writeStr = new StringBuilder();
-        for(final HWHardwareBackedKey key: keyList) {
-            writeStr.append(key.toString());
-        }
-        writeStr.append("selectedKeyLabel=").append(selectedKeyLabel);
-        final File path = context.getFilesDir();
-        final File file = new File(path, "KeyStoreKeys.txt");
-        try (final FileOutputStream stream = new FileOutputStream(file)) {
-            stream.write(writeStr.toString().getBytes());
-        }
-    }
-
-    /**
-     * Function to remove key from AndroidKeyStore.
-     * @param alias: Alias of key.
-     * @return     : True for success. False for failure.
-     */
-    public boolean deleteKey(final String alias) {
-        /* Handle KeyStore */
-        try {
-            final KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
-            keyStore.load(null);
-            keyStore.deleteEntry(alias);
-        } catch (final KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException e) {
-            Log.e(TAG, Log.getStackTraceString(e));
-            return false;
-        }
-
-        /* Handle keyList */
-        final HWHardwareBackedKey key = getKeyFromAlias(alias);
-        if(key != null) {
-            keyList.remove(key);
-        }else{
-            Log.i(TAG, "Key alias not found in keyList.");
-            return false;
-        }
-        try {
-            storeKeys();
-            return true;
-        } catch (final IOException e) {
-            Log.i(TAG, "Failed to store updated keyList into KeyStoreKeys.txt file.");
-            Log.e(TAG, Log.getStackTraceString(e));
-            return false;
-        }
-    }
-
-    /**
-     * Function to get key from alias/label.
-     * @param alias: Alias of key we are looking for.
-     * @return     : First _HardwareBackedKey with same label/alias.
-     */
-    public HWHardwareBackedKey getKeyFromAlias(String alias) {
-        for(final HWHardwareBackedKey key: keyList) {
-            if(key.getLabel().equals(alias)) {
-                return key;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Function to return the keyList.
-     * @return: keyList.
-     */
-    public List<HWHardwareBackedKey> getKeyList() {
-        return keyList;
-    }
-
-    /**
-     * Function to return all keys in AndroidKeyStore that can be used.
-     * @return: HashMap of all keys with their entry.
-     */
-    public static HashMap<String, String> getAndroidKeyStoreKeys() {
-        try {
-            /* Get alias of all keys */
-            final KeyStore keystore = KeyStore.getInstance("AndroidKeyStore");
-            keystore.load(null);
-            final Enumeration<String> enumeration = keystore.aliases();
-            final HashMap keys = new HashMap();
-            while(enumeration.hasMoreElements()) {
-                final String alias = enumeration.nextElement();
-                Log.i(TAG, "alias name: " + alias);
-                final KeyStore.Entry entry = keystore.getEntry(alias, null);
-                Log.i(TAG, entry.toString());
-                /* Process keys into customKeyStore */
-                keys.put(alias, entry.toString());
-            }
-            return keys;
-        } catch (final KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | UnrecoverableEntryException e) {
-            Log.e(TAG, Log.getStackTraceString(e));
-            return null;
-        }
     }
 
     /**
@@ -265,9 +88,8 @@ public class HWKeyStoreManager {
      * // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
      * @param   key: String with key in Base64 format.
      * @param alias: Alias of key.
-     * @return     : True for success. False for failure.
      */
-    public boolean addKeyStoreKeyAES(final String alias, final String key) {
+    public void addKeyStoreKeyAES(final String alias, final String key) {
         /* Import AES key into KeyStore */
         final byte[] importKeyBytes = Base64.decode(key, Base64.DEFAULT);
         final SecretKey importKey = new SecretKeySpec(importKeyBytes, 0, importKeyBytes.length, "AES");
@@ -275,24 +97,7 @@ public class HWKeyStoreManager {
             addAESKeyToAndroidKeyStore(alias, importKey);
         } catch (final KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException e) {
             Log.e(TAG, Log.getStackTraceString(e));
-            return false;
         }
-        /* add key keyList but check if key label already exists
-         * -> if yes update key (do not add to keyList) */
-        final Iterable<HWHardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
-        for(final HWHardwareBackedKey k : keyListCopy) {
-            if(k.getLabel().equals(alias)){
-                keyList.remove(k);
-            }
-        }
-        keyList.add(new HWHardwareBackedKey(HardwareType.KEYSTORE, alias, (byte) 0x0, KeyType.AES));
-        try {
-            storeKeys();
-        } catch (final IOException e) {
-            Log.i(TAG, "Failed to store updated keyList into KeyStoreKeys.txt file.");
-            Log.e(TAG, Log.getStackTraceString(e));
-        }
-        return true;
     }
 
     /**
@@ -321,9 +126,8 @@ public class HWKeyStoreManager {
      * @param crtFile: Name of file in Downloads with pem or der certificate.
      * @param keyFile: Name of file in Downloads in PKCS#8 form.
      * @param   alias: Alias of key.
-     * @return       : Ture for success. False for failure.
      */
-    public boolean addKeyStoreKeyRSA(final String alias, final String crtFile, final String keyFile) {
+    public void addKeyStoreKeyRSA(final String alias, final String crtFile, final String keyFile) {
         try {
             /* Get certificate in pem format and create Certificate */
             final Certificate cert = getCertificate(crtFile);
@@ -334,29 +138,8 @@ public class HWKeyStoreManager {
             /* add private key with cert to AndroidKeyStore Entries */
             addRSAKeyToAndroidKeyStore(alias, cert, privateKey);
         } catch (final IOException | CertificateException | NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException e) {
-            Log.e(TAG, Log.getStackTraceString(e));
-            Log.i(TAG, "Failed to add key to AndroidKeyStores.");
-            return false;
+            Log.e(TAG, "Failed to add key to AndroidKeyStores.");
         }
-
-        /* add key keyList but check if key label already exists
-         * -> if yes update key (remove and add) */
-        final Iterable<HWHardwareBackedKey> keyListCopy = new ArrayList<>(keyList);
-        for(final HWHardwareBackedKey k : keyListCopy) {
-            if(k.getLabel().equals(alias)){
-                keyList.remove(k);
-            }
-        }
-        keyList.add(new HWHardwareBackedKey(HardwareType.KEYSTORE, alias, (byte) 0x0, KeyType.RSA));
-
-        /* Store keys of keyList in KeyStoreKeys.txt file */
-        try {
-            storeKeys();
-        } catch (final IOException e) {
-            Log.i(TAG, "Failed to store updated keyList into KeyStoreKeys.txt file.");
-            Log.e(TAG, Log.getStackTraceString(e));
-        }
-        return false;
     }
 
     /**
