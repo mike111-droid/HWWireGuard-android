@@ -84,6 +84,10 @@ public final class GoBackend implements Backend {
     private static native String wgVersion();
 
     /* Custom change begin */
+    public Key hwOperation(String value) {
+        HWOperation.hwOperation(value);
+    }
+
     private static native int loadPSK(int handle, String settings);
 
     private static native int loadConfig(int handle, String settings);

@@ -73,9 +73,7 @@ func init() {
 }
 
 /* Custom change begin */
-// TODO: sync_conf function
-
-/* loadPSK triggers new handshake -> alrigth for first psk but not handshake-update-psk */
+/* loadPSK triggers new handshake -> alright for first psk but not handshake-update-psk */
 //export loadConfig
 func loadConfig(tunnelHandle int32, settings string) int32 {
     tag := cstring("WireGuard/GoBackend/" + "loadConfig")

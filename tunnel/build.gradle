@@ -54,6 +54,7 @@ dependencies {
     implementation 'androidx.fragment:fragment:1.4.1'
     compileOnly "com.google.code.findbugs:jsr305:$jsr305Version"
     testImplementation "junit:junit:$junitVersion"
+    implementation project(path: ':sc-hsm-android-library')
 }
 
 apply from: "publish.gradle"

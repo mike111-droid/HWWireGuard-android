@@ -29,7 +29,7 @@ public final class Key {
      * @param key an array of bytes containing a binary key. Callers of this constructor are
      *            responsible for ensuring that the array is of the correct length.
      */
-    private Key(final byte[] key) {
+    public Key(final byte[] key) {
         // Defensively copy to ensure immutability.
         this.key = Arrays.copyOf(key, key.length);
     }
