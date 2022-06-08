@@ -80,6 +80,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         )
         mActivity.applicationScope.launch {
             try {
+                /* Authenticate either with HSM Pin or Biometric Prompt */
                 authenticate()
                 /* Wait for authentication */
                 while(!run.get()) {
@@ -170,7 +171,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             dialog.cancel()
         }
         alertDialogBuilder.setView(edittext)
-        /* On positive button press of dialog the timestamp is signed with HSM and newPSK loaded into backend with Pin from edittext */
+        /* On positive checkPin and set run variable to true (also remove all notifications) */
         alertDialogBuilder.setPositiveButton("Enter") { _, _ ->
             val pin = edittext.text.toString()
             /* Verify Pin for SmartCard-HSM */
@@ -182,6 +183,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
             notificationManager!!.cancel(NOTIFICATION_ID)
         }
+        /* If app is not in foreground add notification */
         val alertDialog: AlertDialog = alertDialogBuilder.create()
         alertDialog.show()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

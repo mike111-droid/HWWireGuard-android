@@ -10,27 +10,17 @@ import android.util.Log;
 
 import com.wireguard.crypto.Key;
 import com.wireguard.crypto.KeyFormatException;
-import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey.HardwareType;
 import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey.KeyType;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import androidx.annotation.Nullable;
 import de.cardcontact.opencard.android.swissbit.SBMicroSDCardTerminalFactory;
 import de.cardcontact.opencard.factory.SmartCardHSMCardServiceFactory;
 import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMCardService;
-import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMKey;
 import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMRSAKey;
 import de.cardcontact.opencard.utils.StreamingAPDUTracer;
 import opencard.core.service.CardRequest;
@@ -40,8 +30,6 @@ import opencard.core.service.CardServiceRegistry;
 import opencard.core.service.SmartCard;
 import opencard.core.terminal.CardTerminalException;
 import opencard.core.terminal.CardTerminalRegistry;
-import opencard.core.terminal.CommandAPDU;
-import opencard.core.terminal.ResponseAPDU;
 import opencard.core.util.OpenCardPropertyLoadingException;
 
 /**
