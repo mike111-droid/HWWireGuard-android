@@ -15,6 +15,7 @@ import com.wireguard.android.util.RootShell;
 import com.wireguard.android.util.ToolsInstaller;
 import com.wireguard.config.Config;
 import com.wireguard.crypto.Key;
+import com.wireguard.crypto.KeyFormatException;
 import com.wireguard.util.NonNullForAll;
 
 import java.io.File;
@@ -201,6 +202,11 @@ public final class WgQuickBackend implements Backend {
     @Override
     public void addPSK(Config config) {
         // TODO: Implement with addconf for device with Kernel support -> rooted device necessary
+    }
+    @Override
+    public Key getEphemeralKey() throws KeyFormatException {
+        // TODO: Not applicable for Kernel support
+        return null;
     }
     /* Custom change end */
 }

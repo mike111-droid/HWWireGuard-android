@@ -10,6 +10,10 @@
 #include <jni.h>
 #include <jni.h>
 #include <jni.h>
+#include <jni.h>
+#include <jni.h>
+#include <jni.h>
+#include <jni.h>
 
 struct go_string { const char *str; long n; };
 extern int wgTurnOn(struct go_string ifname, int tun_fd, struct go_string settings);
@@ -20,6 +24,8 @@ extern char *wgGetConfig(int handle);
 extern char *wgVersion();
 
 /* Custom change begin */
+extern char *wgGetEphemeralKey(int handle);
+
 JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_loadConfig(JNIEnv * env, jclass clazz, jint handle, jstring settings) {
     const char *settings_str = (*env)->GetStringUTFChars(env, settings, 0);
     size_t settings_len = (*env)->GetStringUTFLength(env, settings);
@@ -41,6 +47,16 @@ JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_loadPSK(JNIE
                                  .n = settings_len
                          }
     );
+    return ret;
+}
+
+JNIEXPORT jstring JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetEphemeralKey(JNIEnv *env, jclass c, jint handle) {
+    jstring ret;
+    char *oldPSK = wgGetEphemeralKey(handle);
+    if (!oldPSK)
+        return NULL;
+    ret = (*env)->NewStringUTF(env, oldPSK);
+    free(oldPSK);
     return ret;
 }
 /* Custom change end */
@@ -73,12 +89,10 @@ JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetSocketV
 	return wgGetSocketV4(handle);
 }
 
-JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetSocketV6(JNIEnv *env, jclass c, jint handle)
+JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetSocketV6(JNIEnv *env, jclass c, jint handle)
 {
 	return wgGetSocketV6(handle);
 }
-
-
 
 JNICALL Java_com_wireguard_android_backend_GoBackend_wgGetConfig(JNIEnv *env, jclass c, jint handle)
 {
@@ -101,5 +115,6 @@ JNICALL Java_com_wireguard_android_backend_GoBackend_wgVersion(JNIEnv *env, jcla
 	free(version);
 	return ret;
 }
+
 
 

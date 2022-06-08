@@ -6,6 +6,8 @@
 package com.wireguard.android.backend;
 
 import com.wireguard.config.Config;
+import com.wireguard.crypto.Key;
+import com.wireguard.crypto.KeyFormatException;
 import com.wireguard.util.NonNullForAll;
 
 import java.util.Set;
@@ -69,5 +71,6 @@ public interface Backend {
     /* Custom change begin */
     void addConf(Config config);
     void addPSK(Config config);
+    Key getEphemeralKey() throws KeyFormatException;
     /* Custom change end */
 }

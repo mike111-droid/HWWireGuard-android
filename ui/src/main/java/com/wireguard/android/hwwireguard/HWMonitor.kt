@@ -145,6 +145,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     private suspend fun monitor() {
         //Log.i(TAG, "Checking tunnel: $mTunnel")
+        Log.i(TAG, "ephemeral key: " + HWApplication.getBackend().ephemeralKey.toBase64())
         newTimestamp = HWTimestamp().timestamp.toString()
         /* Check which mode is selected in preferences */
         val pref = PreferencesPreferenceDataStore(

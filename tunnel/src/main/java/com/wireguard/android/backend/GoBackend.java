@@ -84,13 +84,22 @@ public final class GoBackend implements Backend {
     private static native String wgVersion();
 
     /* Custom change begin */
-    public Key hwOperation(String value) {
-        HWOperation.hwOperation(value);
+    public void hwOperation(String value) {
+        Log.i(TAG, "Called from WireGuardGo...");
     }
 
     private static native int loadPSK(int handle, String settings);
 
     private static native int loadConfig(int handle, String settings);
+
+    private static native String wgGetEphemeralKey(int handle);
+
+    @Override
+    public Key getEphemeralKey() throws KeyFormatException {
+        String ephKey = wgGetEphemeralKey(currentTunnelHandle);
+        Log.i(TAG, "ephemeral key: " + ephKey);
+        return Key.fromBase64(ephKey);
+    }
 
     @Override
     public void addConf(Config config) {

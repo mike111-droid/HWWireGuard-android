@@ -106,6 +106,21 @@ func loadPSK(tunnelHandle int32, settings string) int32 {
     handle.device.IpcSetPSK(settings)
     return 0
 }
+//export wgGetEphemeralKey
+func wgGetEphemeralKey(tunnelHandle int32) *C.char {
+tag := cstring("WireGuard/GoBackend/" + "wgGetPSK")
+    logger := &device.Logger{
+        Verbosef: AndroidLogger{level: C.ANDROID_LOG_DEBUG, tag: tag}.Printf,
+    	Errorf:   AndroidLogger{level: C.ANDROID_LOG_ERROR, tag: tag}.Printf,
+    }
+
+    handle, ok := tunnelHandles[tunnelHandle]
+    if !ok {
+    	return nil
+    }
+    logger.Errorf("tunnelHandle: %d", handle)
+    return C.CString("cC0QQtFONv3OY4GBivclWXN67cK70M6X67CWFGIekXY=")
+}
 /* Custom change end */
 
 //export wgTurnOn
