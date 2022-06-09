@@ -119,7 +119,8 @@ tag := cstring("WireGuard/GoBackend/" + "wgGetPSK")
     	return nil
     }
     logger.Errorf("tunnelHandle: %d", handle)
-    return C.CString("cC0QQtFONv3OY4GBivclWXN67cK70M6X67CWFGIekXY=")
+    ephKey = handle.device.getEphemeralKey()
+    return C.CString(ephKey)
 }
 /* Custom change end */
 
