@@ -70,19 +70,38 @@ public class HWKeyStoreManager {
     }
 
     /**
-     * Function to add new AES key to AndroidKeyStore.
-     * // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
-     * @param   key: String with key in Base64 format.
+     * Function to remove key from AndroidKeyStore.
      * @param alias: Alias of key.
      */
-    public void addKeyStoreKeyAES(final String alias, final String key) {
-        /* Import AES key into KeyStore */
-        final byte[] importKeyBytes = Base64.decode(key, Base64.DEFAULT);
-        final SecretKey importKey = new SecretKeySpec(importKeyBytes, 0, importKeyBytes.length, "AES");
+    public void deleteKey(final String alias) {
+        /* Handle KeyStore */
         try {
-            addAESKeyToAndroidKeyStore(alias, importKey);
+            final KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+            keyStore.deleteEntry(alias);
         } catch (final KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException e) {
             Log.e(TAG, Log.getStackTraceString(e));
+        }
+    }
+
+    /**
+     * Function to add new AES key to AndroidKeyStore.
+     * @param keyFile: File name with AES key encoded in Base64.
+     * @param   alias: Alias of key.
+     */
+    public boolean addKeyStoreKeyAES(final String alias, final String keyFile) {
+        /* Import AES key into KeyStore from file */
+        try {
+            final String pathKey = Environment.getExternalStorageDirectory() + File.separator + "Download" + File.separator + keyFile;
+            Log.i(TAG, "Using this path for key: " + pathKey);
+            final byte[] fileContent = Files.readAllBytes(Paths.get(pathKey));
+            final byte[] importKeyBytes = Base64.decode(fileContent, Base64.DEFAULT);
+            final SecretKey importKey = new SecretKeySpec(importKeyBytes, 0, importKeyBytes.length, "AES");
+            addAESKeyToAndroidKeyStore(alias, importKey);
+            return true;
+        } catch (final KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException e) {
+            Log.e(TAG, Log.getStackTraceString(e));
+            return false;
         }
     }
 
@@ -108,12 +127,11 @@ public class HWKeyStoreManager {
 
     /**
      * Function to add new RSA key to AndroidKeyStore.
-     * // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
      * @param crtFile: Name of file in Downloads with pem or der certificate.
      * @param keyFile: Name of file in Downloads in PKCS#8 form.
      * @param   alias: Alias of key.
      */
-    public void addKeyStoreKeyRSA(final String alias, final String crtFile, final String keyFile) {
+    public boolean addKeyStoreKeyRSA(final String alias, final String crtFile, final String keyFile) {
         try {
             /* Get certificate in pem format and create Certificate */
             final Certificate cert = getCertificate(crtFile);
@@ -123,8 +141,10 @@ public class HWKeyStoreManager {
 
             /* add private key with cert to AndroidKeyStore Entries */
             addRSAKeyToAndroidKeyStore(alias, cert, privateKey);
+            return true;
         } catch (final IOException | CertificateException | NoSuchAlgorithmException | InvalidKeySpecException | KeyStoreException e) {
-            Log.e(TAG, "Failed to add key to AndroidKeyStores.");
+            Log.i(TAG, "Failed to add key to AndroidKeyStores.");
+            return false;
         }
     }
 

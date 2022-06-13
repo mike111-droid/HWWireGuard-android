@@ -62,8 +62,14 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         super.onResume()
         Log.i(TAG, "onResume called...")
         if(monitor.startBiometricPrompt) {
-            val keyStoreOperation =  HWKeyStoreManager(requireContext())
-            keyStoreOperation.keyStoreOperation(monitor.newTimestamp!!, "rsa_key", monitor.getTunnel()!!, monitor)
+            val keyStoreManager =  HWKeyStoreManager(requireContext())
+            /* Check which algorithm to use (RSA or AES) */
+            val keyAlgo = monitor.mPref.getString("dropdownAlgorithms", "none")
+            if(keyAlgo == "RSA") {
+                keyStoreManager.keyStoreOperation(monitor.newTimestamp!!, "rsa_key", monitor.getTunnel()!!, monitor)
+            }else{
+                keyStoreManager.keyStoreOperation(monitor.newTimestamp!!, "aes_key", monitor.getTunnel()!!, monitor)
+            }
             monitor.startBiometricPrompt = false
             val notificationManager =
                 requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?

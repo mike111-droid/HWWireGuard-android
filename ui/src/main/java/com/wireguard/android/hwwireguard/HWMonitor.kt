@@ -240,7 +240,13 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private fun hsmOperation(timestamp: String) {
         val hsmManager = HWHSMManager(mContext)
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
-        val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
+        /* Check which algorithm to use (RSA or AES) */
+        val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
+        var newPSK: Key = if(keyAlgo == "RSA") {
+            hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
+        }else{
+            hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.AES, smartCardService, timestamp, 0x1)
+        }
         /* Load newPSK into GoBackend */
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, newPSK)
@@ -261,7 +267,13 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             }else{
                 val keyStoreManager = HWKeyStoreManager(mContext)
                 //Debug.startMethodTracing("demo.trace")
-                val newPSK = keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+                /* Check which algorithm to use (RSA or AES) */
+                val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
+                var newPSK: Key = if(keyAlgo == "RSA") {
+                    keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+                }else{
+                    keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
+                }
                 //Debug.stopMethodTracing()
                 val config = mTunnel!!.getConfigAsync()
                 /* delay to make sure that config is loaded */
