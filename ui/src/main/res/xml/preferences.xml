@@ -14,17 +14,20 @@
             android:entryValues="@array/hwbacked"
             android:entries="@array/hwbackedlonger"
             app:useSimpleSummaryProvider="true" />
-        <!--CheckBoxPreference
-            android:id="@+id/use_hsm"
-            android:defaultValue="false"
-            android:key="use_hsm"
-            android:summaryOff="@string/keystore_off"
-            android:summaryOn="@string/keystore_on"
-            android:title="@string/keystore_title" /-->
+        <DropDownPreference
+            android:key="dropdownAlgorithms"
+            android:title="Choose Algorithm"
+            android:entryValues="@array/algorithms"
+            android:entries="@array/algorithmslonger"
+            app:useSimpleSummaryProvider="true" />
         <Preference
-            android:key="key_option"
-            android:summary="@string/key_option_summary"
-            android:title="@string/key_option_title" />
+            android:key="import_rsa"
+            android:summary="@string/import_key_summary_rsa"
+            android:title="@string/import_key_rsa" />
+        <Preference
+            android:key="import_aes"
+            android:summary="@string/import_key_summary_aes"
+            android:title="@string/import_key_aes" />
     </PreferenceCategory>
     <!-- Custom change end -->
     <PreferenceCategory

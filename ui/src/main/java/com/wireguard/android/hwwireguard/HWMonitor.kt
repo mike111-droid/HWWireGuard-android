@@ -293,22 +293,26 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     }
 
     /**
-     * Function to ratchet PSK for specific peer.
+     * Function to ratchet PSK for specific peer with hardware device.
      */
-    private fun ratchet(config: Config, peer: Peer) {
+    private suspend fun ratchet(config: Config, peer: Peer) {
         var configCopy = config
-        val ratchetManager = HWRatchetManager()
+        val hwBackend = mPref.getString("dropdown", "none")
         for((counter, peerIter) in config.peers.withIndex()) {
             /* find specific peer */
             if(peerIter == peer) {
                 val psk = configCopy.peers[counter].preSharedKey.get()
-                val newPSK = ratchetManager.ratchet(psk)
-                if(newPSK == null) {
-                    Log.i(TAG, "newPSK return as null from ratchetManager")
-                    loadNewPSK(configCopy, peer, initPSK)
-                }else{
-                    Log.i(TAG, "newPSK is ${newPSK.toBase64()}")
-                    loadNewPSK(configCopy, peer, newPSK)
+                if (hwBackend == "SmartCardHSM") {
+                    Log.i(TAG, "Using SmartCard-HSM...")
+                    /* reload PSK with newTimestamp signed by SmartCard-HSM */
+                    hsmOperation(psk.toBase64(), peerIter)
+                } else if (hwBackend == "AndroidKeyStore") {
+                    Log.i(TAG, "Using AndroidKeyStore...")
+                    /* Check for minimum version to run app */
+                    if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        /* reload PSK with newTimestamp signed by Android KeyStore */
+                        keyStoreOperation(psk.toBase64(), peerIter)
+                    }
                 }
             }
         }
@@ -321,7 +325,13 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         val hsmManager = HWHSMManager(mContext)
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
         //Debug.startMethodTracing("demo.trace")
-        val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
+        /* Check which algorithm to use (RSA or AES) */
+        val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
+        var newPSK: Key = if(keyAlgo == "RSA") {
+            hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
+        }else{
+            hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.AES, smartCardService, timestamp, 0x1)
+        }
         initPSK = newPSK
         //Debug.stopMethodTracing()
         /* Load newPSK into GoBackend */
@@ -335,7 +345,13 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         val hsmManager = HWHSMManager(mContext)
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
         //Debug.startMethodTracing("demo.trace")
-        val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
+        /* Check which algorithm to use (RSA or AES) */
+        val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
+        var newPSK: Key = if(keyAlgo == "RSA") {
+            hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
+        }else{
+            hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.AES, smartCardService, timestamp, 0x1)
+        }
         initPSK = newPSK
         //Debug.stopMethodTracing()
         /* Load newPSK into GoBackend */
@@ -358,7 +374,13 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             }else{
                 val keyStoreManager = HWKeyStoreManager(mContext)
                 //Debug.startMethodTracing("demo.trace")
-                val newPSK = keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+                /* Check which algorithm to use (RSA or AES) */
+                val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
+                var newPSK: Key = if(keyAlgo == "RSA") {
+                    keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+                }else{
+                    keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
+                }
                 initPSK = newPSK
                 //Debug.stopMethodTracing()
                 val config = mTunnel!!.getConfigAsync()
@@ -383,7 +405,12 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val keyStoreManager = HWKeyStoreManager(mContext)
             //Debug.startMethodTracing("demo.trace")
-            val newPSK = keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+            val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
+            var newPSK: Key = if(keyAlgo == "RSA") {
+                keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+            }else{
+                keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
+            }
             initPSK = newPSK
             //Debug.stopMethodTracing()
             val config = mTunnel!!.getConfigAsync()
