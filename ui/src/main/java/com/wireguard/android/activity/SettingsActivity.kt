@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.MenuItem
+import android.widget.Toast
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
@@ -15,6 +16,7 @@ import androidx.preference.PreferenceFragmentCompat
 import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.backend.WgQuickBackend
+import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.AdminKnobs
 import kotlinx.coroutines.Dispatchers
@@ -82,8 +84,26 @@ class SettingsActivity : ThemeChangeAwareActivity() {
                 true
             }
             /* Custom change begin */
-            preferenceManager.findPreference<Preference>("key_option")?.setOnPreferenceClickListener {
-                startActivity(Intent(requireContext(), LogViewerActivity::class.java))
+            preferenceManager.findPreference<Preference>("import_rsa")?.setOnPreferenceClickListener {
+                val keyStoreManager = HWKeyStoreManager(context)
+                keyStoreManager.deleteKey("rsa_key")
+                val ret = keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
+                if(ret) {
+                    Toast.makeText(activity, "Import was successful.", Toast.LENGTH_LONG).show()
+                }else{
+                    Toast.makeText(activity, "Import was not successful.", Toast.LENGTH_LONG).show()
+                }
+                true
+            }
+            preferenceManager.findPreference<Preference>("import_aes")?.setOnPreferenceClickListener {
+                val keyStoreManager = HWKeyStoreManager(context)
+                keyStoreManager.deleteKey("aes_key")
+                val ret = keyStoreManager.addKeyStoreKeyAES("aes_key", "key.txt")
+                if(ret) {
+                    Toast.makeText(activity, "Import was successful.", Toast.LENGTH_LONG).show()
+                }else{
+                    Toast.makeText(activity, "Import was not successful.", Toast.LENGTH_LONG).show()
+                }
                 true
             }
             /* Custom change end */
@@ -102,45 +122,6 @@ class SettingsActivity : ThemeChangeAwareActivity() {
                 kernelModuleEnabler?.parent?.removePreference(kernelModuleEnabler)
             }
         }
-
-        /* Custom change begin */
-        /*override fun onResume() {
-            super.onResume()
-            //unregister the preferenceChange listener
-            preferenceScreen.sharedPreferences?.registerOnSharedPreferenceChangeListener(this)
-        }
-
-        override fun onSharedPreferenceChanged(
-            sharedPreferences: SharedPreferences?,
-            key: String?
-        ) {
-            Log.i("onSharedPreferenceChanged", "Preferences changed.")
-            val category = findPreference("key_option") as PreferenceCategory?
-            val keystorePref = findPreference<Preference>("key_option_keystore")
-            val hsmPref = findPreference<Preference>("key_option_hsm")
-            val prefs = PreferencesPreferenceDataStore(lifecycleScope, Application.getPreferencesDataStore())
-            if(prefs.getBoolean("use_hsm", false)) {
-                preferenceManager.findPreference<Preference>("key_option_hsm")?.setOnPreferenceClickListener {
-                    startActivity(Intent(requireContext(), HSMActivity::class.java))
-                    true
-                }
-                category?.removePreference(hsmPref!!)
-                category?.addPreference(keystorePref!!)
-            } else {
-                preferenceManager.findPreference<Preference>("key_option_keystore")?.setOnPreferenceClickListener {
-                    startActivity(Intent(requireContext(), LogViewerActivity::class.java))
-                    true
-                }
-                category?.removePreference(keystorePref!!)
-                category?.addPreference(hsmPref!!)
-            }
-        }
-        override fun onPause() {
-            super.onPause()
-            //unregister the preference change listener
-            preferenceScreen.sharedPreferences?.unregisterOnSharedPreferenceChangeListener(this)
-        }*/
-        /* Custom change end */
     }
 }
 

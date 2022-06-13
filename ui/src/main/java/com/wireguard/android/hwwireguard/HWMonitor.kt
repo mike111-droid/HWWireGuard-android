@@ -320,10 +320,14 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private fun hsmOperation(timestamp: String) {
         val hsmManager = HWHSMManager(mContext)
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
-        //Debug.startMethodTracing("demo.trace")
-        val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
+        /* Check which algorithm to use (RSA or AES) */
+        val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
+        var newPSK: Key = if(keyAlgo == "RSA") {
+            hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
+        }else{
+            hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.AES, smartCardService, timestamp, 0x1)
+        }
         initPSK = newPSK
-        //Debug.stopMethodTracing()
         /* Load newPSK into GoBackend */
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, newPSK)
@@ -334,10 +338,14 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private fun hsmOperation(timestamp: String, peer: Peer) {
         val hsmManager = HWHSMManager(mContext)
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
-        //Debug.startMethodTracing("demo.trace")
-        val newPSK = hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
+        /* Check which algorithm to use (RSA or AES) */
+        val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
+        var newPSK: Key = if(keyAlgo == "RSA") {
+            hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
+        }else{
+            hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.AES, smartCardService, timestamp, 0x1)
+        }
         initPSK = newPSK
-        //Debug.stopMethodTracing()
         /* Load newPSK into GoBackend */
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, peer, newPSK)
@@ -357,8 +365,13 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             /* if app is in foreground -> keyStoreOperation direct */
             }else{
                 val keyStoreManager = HWKeyStoreManager(mContext)
-                //Debug.startMethodTracing("demo.trace")
-                val newPSK = keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+                /* Check which algorithm to use (RSA or AES) */
+                val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
+                var newPSK: Key = if(keyAlgo == "RSA") {
+                    keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+                }else{
+                    keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
+                }
                 initPSK = newPSK
                 //Debug.stopMethodTracing()
                 val config = mTunnel!!.getConfigAsync()
@@ -382,10 +395,13 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private suspend fun  keyStoreOperation(timestamp: String, peer: Peer) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val keyStoreManager = HWKeyStoreManager(mContext)
-            //Debug.startMethodTracing("demo.trace")
-            val newPSK = keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+            val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
+            var newPSK: Key = if(keyAlgo == "RSA") {
+                keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+            }else{
+                keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
+            }
             initPSK = newPSK
-            //Debug.stopMethodTracing()
             val config = mTunnel!!.getConfigAsync()
             /* delay to make sure that config is loaded */
             // TODO: find better solution
