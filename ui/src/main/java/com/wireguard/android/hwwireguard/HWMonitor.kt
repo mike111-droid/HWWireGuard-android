@@ -30,7 +30,6 @@ import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.hwwireguard.crypto.HWHSMManager
 import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey
 import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
-import com.wireguard.android.hwwireguard.crypto.HWRatchetManager
 import com.wireguard.android.hwwireguard.crypto.HWTimestamp
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
@@ -239,7 +238,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             oldTimestamp = newTimestamp
         }
         /* Check if handshake successful
-        * -> if yes: ratchet with oldPSK
+        * -> if yes: ratchet with oldPSK and hardware device
         * -> if no:  continue */
         val config = mTunnel!!.config
         if(config == null) {
@@ -253,6 +252,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 mLastHandshakeTime[peer.publicKey] = 0
             }
             if(peer != null && lastHandshakeTime[peer.publicKey] != mLastHandshakeTime[peer.publicKey]) {
+                /* handshake successful */
                 lastHandshakeTime[peer.publicKey]?.let { mLastHandshakeTime.put(peer.publicKey, it) }
                 Log.i(TAG, "handshake was successful... Do ratchet...")
                 ratchet(config, peer)
@@ -293,25 +293,33 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     }
 
     /**
-     * Function to ratchet PSK for specific peer with hardware device.
+     * Function to ratchet PSK for specific peer with hardware device using the ephemeral key as input.
      */
     private suspend fun ratchet(config: Config, peer: Peer) {
+        var stats = HWApplication.getBackend().getStatistics(mTunnel)
         var configCopy = config
         val hwBackend = mPref.getString("dropdown", "none")
         for((counter, peerIter) in config.peers.withIndex()) {
             /* find specific peer */
             if(peerIter == peer) {
-                val psk = configCopy.peers[counter].preSharedKey.get()
+                /* get ephemeral key */
+                var chainKey = stats.chainKeys[peerIter.publicKey]
+                if(chainKey == null) {
+                    Log.i(TAG, "chainKey is null")
+                    return
+                }else{
+                    Log.i(TAG, "chainKey: ${chainKey.toBase64()}")
+                }
                 if (hwBackend == "SmartCardHSM") {
                     Log.i(TAG, "Using SmartCard-HSM...")
                     /* reload PSK with newTimestamp signed by SmartCard-HSM */
-                    hsmOperation(psk.toBase64(), peerIter)
+                    hsmOperation(chainKey.toBase64(), peerIter)
                 } else if (hwBackend == "AndroidKeyStore") {
                     Log.i(TAG, "Using AndroidKeyStore...")
                     /* Check for minimum version to run app */
                     if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         /* reload PSK with newTimestamp signed by Android KeyStore */
-                        keyStoreOperation(psk.toBase64(), peerIter)
+                        keyStoreOperation(chainKey.toBase64(), peerIter)
                     }
                 }
             }
@@ -344,7 +352,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private fun hsmOperation(timestamp: String, peer: Peer) {
         val hsmManager = HWHSMManager(mContext)
         /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
-        //Debug.startMethodTracing("demo.trace")
         /* Check which algorithm to use (RSA or AES) */
         val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
         var newPSK: Key = if(keyAlgo == "RSA") {
@@ -353,7 +360,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.AES, smartCardService, timestamp, 0x1)
         }
         initPSK = newPSK
-        //Debug.stopMethodTracing()
         /* Load newPSK into GoBackend */
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, peer, newPSK)

@@ -40,14 +40,22 @@ public class Statistics {
     }
 
     /* Custom change begin */
+    /* List with handshakeAttempts */
     public HashMap<Key, Integer> handshakeAttempts = new HashMap<>();
     public void addHandshakeAttempts(Key key, int handshakeAttempts) {
         this.handshakeAttempts.put(key, handshakeAttempts);
     }
 
+    /* List with lastHandshakeTime */
     public HashMap<Key, Integer> lastHandshakeTime = new HashMap<>();
     public void addLastHandshakeTime(Key key, int lastHandshakeTime) {
         this.lastHandshakeTime.put(key, lastHandshakeTime);
+    }
+
+    /* List with astEphemeralKeys*/
+    public HashMap<Key, Key> chainKeys = new HashMap<>();
+    public void addChainKeys(Key peer, Key ephKey) {
+        this.chainKeys.put(peer, ephKey);
     }
 
     private HashMap<Key, Key> presharedKey = new HashMap<>();

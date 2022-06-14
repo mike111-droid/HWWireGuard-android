@@ -99,6 +99,19 @@ public final class GoBackend implements Backend {
         int ret = loadPSK(currentTunnelHandle, config.toWgUserspaceString());
         Log.i(TAG, "ret: " + ret);
     }
+
+    /**
+     * Function transforms byte[] of key in hex to type Key.
+     * @param bytes: Byte array with key.
+     * @return     : Key.
+     */
+    public static Key bytesToKey(final byte[] bytes) throws KeyFormatException {
+        final StringBuilder strSig = new StringBuilder();
+        for (final byte aByte : bytes) {
+            strSig.append(String.format("%02x", aByte));
+        }
+        return Key.fromHex(strSig.toString());
+    }
     /* Custom change end */
 
     /**
@@ -186,6 +199,16 @@ public final class GoBackend implements Backend {
                     continue;
                 //Log.i(TAG, line.substring(18) + " handshakeAttempts was found");
                 stats.addHandshakeAttempts(key, Integer.parseInt(line.substring(18)));
+            } else if (line.startsWith("chainKey=")) {
+                if (key == null)
+                    continue;
+                try {
+                    //Log.i(TAG, "chainKey=" + line.substring(9));
+                    stats.addChainKeys(key, Key.fromHex(line.substring(9)));
+                } catch (KeyFormatException e) {
+                    //Log.i(TAG, "chainKey cannot formatted to key.");
+                    stats.addChainKeys(key, null);
+                }
             } else if (line.startsWith("preshared_key=")) {
                 if (key == null)
                     continue;
