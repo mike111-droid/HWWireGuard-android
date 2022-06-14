@@ -249,6 +249,7 @@
     <string name="key_option_title">Choose Key</string>
     <string name="key_option_summary">Choose or add hardware-backed keys</string>
     <string name="biometric_prompt_key">Authenticate for use of AndroidKeyStore</string>
+    <!--Custom change begin-->
     <string name="import_key_rsa">Import RSA Key</string>
     <string name="import_key_summary_rsa">Import AKS RSA Key</string>
     <string name="import_key_aes">Import AES Key</string>
@@ -271,4 +272,5 @@
         <item>Using AndroidKeystores for key storage</item>
         <item>Using SmartCard-HSM for key storage</item>
     </string-array>
+    <!--Custom change end-->
 </resources>
