@@ -18,8 +18,6 @@ import android.text.InputType
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
 import android.widget.EditText
-import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.biometric.BiometricPrompt
 import androidx.core.app.NotificationCompat
@@ -69,7 +67,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /* isTunnelSet makes sure that mTunnel is only set once */
     private var isTunnelSet: Boolean = false
     /* SmartCardHSMCardService is necessary for all interactions with HSM */
-    var smartCardService: SmartCardHSMCardService? = null
+    private var smartCardService: SmartCardHSMCardService? = null
     /* Hardware backend (either AndroidKeyStore or SmartCard-HSM */
     var mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
     /* Key algorithm (either RSA or AES) */
@@ -97,7 +95,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 }
             /* Catch all expression that might be thrown by the SmartCard-HSM */
             } catch (e: Exception) {
-                Log.i(TAG, Log.getStackTraceString(e));
+                Log.i(TAG, Log.getStackTraceString(e))
             } finally {
                 /* Make sure to shutdown SmartCard-HSM */
                 if (mHWBackend == "SmartCardHSM") {
