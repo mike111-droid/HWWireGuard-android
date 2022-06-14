@@ -26,13 +26,10 @@ import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.databinding.TunnelListItemBinding
 import com.wireguard.android.hwwireguard.HWMonitor
-import com.wireguard.android.hwwireguard.crypto.HWBiometricAuthenticator
 import com.wireguard.android.model.ObservableTunnel
-import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.ErrorMessages
-import com.wireguard.android.util.applicationScope
 import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
-import com.wireguard.crypto.Key
+import com.wireguard.android.hwwireguard.crypto.HWTimestamp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -64,11 +61,10 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         if(monitor.startBiometricPrompt) {
             val keyStoreManager =  HWKeyStoreManager(requireContext())
             /* Check which algorithm to use (RSA or AES) */
-            val keyAlgo = monitor.mPref.getString("dropdownAlgorithms", "none")
-            if(keyAlgo == "RSA") {
-                keyStoreManager.keyStoreOperation(monitor.newTimestamp!!, "rsa_key", monitor.getTunnel()!!, monitor)
+            if(monitor.mKeyAlgo == "RSA") {
+                keyStoreManager.keyStoreOperation(HWTimestamp().timestamp.toString(), "rsa_key", monitor.getTunnel()!!, monitor)
             }else{
-                keyStoreManager.keyStoreOperation(monitor.newTimestamp!!, "aes_key", monitor.getTunnel()!!, monitor)
+                keyStoreManager.keyStoreOperation(HWTimestamp().timestamp.toString(), "aes_key", monitor.getTunnel()!!, monitor)
             }
             monitor.startBiometricPrompt = false
             val notificationManager =
@@ -113,23 +109,21 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }
 
             /* Custom change begin */
-            //val keyStoreManager = HWKeyStoreManager(context)
-            //keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
-            //keyStoreManager.deleteKey("rsa_key")
-
-            if(PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
+            if(monitor.mHWBackend != "none") {
+                /* HWBackend is AndroidKeyStore or SmartCard-HSM */
                 if(checked) {
                     Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
+                    /* Tunnel must be set before startMonitor() */
                     monitor.setTunnel(tunnel)
-                    Debug.startMethodTracing("wireguard_v1.trace")
                     monitor.startMonitor()
                 } else {
                     Log.i(TAG, "Tunnel state is down, so we stop the Monitor.")
-                    Debug.stopMethodTracing()
                     monitor.stopMonitor()
                 }
             }else{
+                /* HWBackend is none (neither AndroidKeyStore nor SmartCard-HSM) */
                 if(checked) {
+                    /* load config to make sure PSK of config is in backend */
                     val config = tunnel.getConfigAsync()
                     delay(1000)
                     HWApplication.getBackend().addConf(config)

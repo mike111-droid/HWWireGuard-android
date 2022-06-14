@@ -53,31 +53,35 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         const val NOTIFICATION_ID = 0
     }
 
+    /* Atomic boolean to stay the same across multiple process and control monitor process */
     private var run: AtomicBoolean = AtomicBoolean(false)
-    private var oldTimestamp: String? = null
-    var newTimestamp: String? = null
+    /* Variable to save old timestamp for comparison */
+    private var mOldTimestamp: String? = null
+    /* mContext, mActivity, mFragment
+    * Necessary variables to perform certain UI interactions */
     val mContext: Context = context
     private val mActivity: Activity = activity
     val mFragment: Fragment = fragment
-    var startBiometricPrompt: Boolean = false
-    /* Tunnel can only be set once */
+    /* Variable to lookup which tunnel this monitor observes */
     private var mTunnel: ObservableTunnel? = null
+
+    var startBiometricPrompt: Boolean = false
     /* isTunnelSet makes sure that mTunnel is only set once */
     private var isTunnelSet: Boolean = false
     /* SmartCardHSMCardService is necessary for all interactions with HSM */
     var smartCardService: SmartCardHSMCardService? = null
-    /* Variable to safe preference of current tunnel */
-    lateinit var mPref: PreferencesPreferenceDataStore
+    /* Hardware backend (either AndroidKeyStore or SmartCard-HSM */
+    var mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
+    /* Key algorithm (either RSA or AES) */
+    var mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "none")
 
     /**
-     * Function to start the monitor process. Is stop with AtomicBoolean run. mTunnel must be set before.
+     * Function to start the monitor process.
+     * Also handles authentication of user at start of tunnel.
+     * Also start SmartCard-HSM session in authenticate.
      */
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
-        mPref = PreferencesPreferenceDataStore(
-            applicationScope,
-            HWApplication.getPreferencesDataStore()
-        )
         mActivity.applicationScope.launch {
             try {
                 /* Authenticate either with HSM Pin or Biometric Prompt */
@@ -96,8 +100,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 Log.i(TAG, Log.getStackTraceString(e));
             } finally {
                 /* Make sure to shutdown SmartCard-HSM */
-                val hwBackend = mPref.getString("dropdown", "none")
-                if (hwBackend == "SmartCardHSM") {
+                if (mHWBackend == "SmartCardHSM") {
                     try {
                         Log.i(TAG, "Shutting down.")
                         SmartCard.shutdown()
@@ -113,13 +116,15 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to authenticate either AndroidKeyStores or SmartCard-HSM.
      */
     private fun authenticate() {
-        val hwBackend = mPref.getString("dropdown", "none")
-        if (hwBackend == "SmartCardHSM") {
+        /* Check which hardware backend */
+        if (mHWBackend == "SmartCardHSM") {
             /* Create session for HSM operations */
             val hsmManager = HWHSMManager(mContext)
             smartCardService = hsmManager.smartCardHSMCardService
+            /* Authenticate for SmartCard-HSM */
             smartCardService?.let { authenticateHSM(it, hsmManager) }
-        }else if(hwBackend == "AndroidKeyStore") {
+        }else if(mHWBackend == "AndroidKeyStore") {
+            /* Authenticate for Android KeyStore */
             authenticateKeyStore()
         }
     }
@@ -127,51 +132,65 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to authenticate AndroidKeyStore.
      */
     private fun authenticateKeyStore() {
+        /* Define callback actions for different authentication results */
         val authCallback = object : BiometricPrompt.AuthenticationCallback() {
+            /* Error case */
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                 super.onAuthenticationError(errorCode, errString)
                 Log.w(TAG, "onAuthenticationError $errorCode $errString")
             }
-
+            /* Success case -> set run to true (to break wait loop) */
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                 super.onAuthenticationSucceeded(result)
                 run.set(true)
                 Log.d(TAG, "onAuthenticationSucceeded " + result.cryptoObject)
             }
-
+            /* Error case */
             override fun onAuthenticationFailed() {
                 super.onAuthenticationFailed()
                 Log.w(TAG, "onAuthenticationFailed")
             }
         }
-        val prompt = BiometricPrompt(
-            mFragment,
-            ContextCompat.getMainExecutor(mContext),
-            authCallback)
+        val prompt = BiometricPrompt(mFragment, ContextCompat.getMainExecutor(mContext), authCallback)
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle("Unlock your device to use KeyStore keys")
             .setConfirmationRequired(true)
             .setDeviceCredentialAllowed(true)
             .build()
+        /* Display authentication prompt */
         prompt.authenticate(promptInfo)
     }
     /**
-     * Function to enter pin to SmartCardHSMCardService so Session is started which is used for all HSM operations.
+     * Function to authenticate SmartCard-HSM.
+     * Authentication via HSM PIN in a alert dialog prompt.
      * The session is ended with the closing of the tunnel.
      */
     private fun authenticateHSM(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager) {
-        /* Open Dialog window for Pin */
+        /* Construct alert dialog */
         val edittext = EditText(mContext)
         edittext.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         edittext.transformationMethod = PasswordTransformationMethod.getInstance()
+        var alertDialogBuilder = getHSMAlertDialogBuilder(schsmcs, hsmManager, edittext)
+        /* If app is not in foreground add notification */
+        val alertDialog: AlertDialog = alertDialogBuilder.create()
+        /* Show alert dialog */
+        alertDialog.show()
+    }
+    /**
+     * Function to get AlertDialogBuilder for HSM authentication.
+     */
+    private fun getHSMAlertDialogBuilder(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager, edittext: EditText): AlertDialog.Builder {
+        /* Get AlertDialogBuilder with mContext */
         val alertDialogBuilder: AlertDialog.Builder = AlertDialog.Builder(mContext)
+        /* Set displayed text and textedit */
         alertDialogBuilder.setMessage("Enter the PIN of the SmartCard-HSM in order to use it.")
         alertDialogBuilder.setTitle("Authenticate yourself")
+        alertDialogBuilder.setView(edittext)
+        /* Action for cancel button. Closes dialog. */
         alertDialogBuilder.setNegativeButton("Cancel") {dialog, _ ->
             dialog.cancel()
         }
-        alertDialogBuilder.setView(edittext)
-        /* On positive checkPin and set run variable to true (also remove all notifications) */
+        /* Action for enter button. Login to SmartCard-HSM and set run to true (to break wait loop) */
         alertDialogBuilder.setPositiveButton("Enter") { _, _ ->
             val pin = edittext.text.toString()
             /* Verify Pin for SmartCard-HSM */
@@ -183,14 +202,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
             notificationManager!!.cancel(NOTIFICATION_ID)
         }
-        /* If app is not in foreground add notification */
-        val alertDialog: AlertDialog = alertDialogBuilder.create()
-        alertDialog.show()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if(!isAppInForeground()) {
-                addNotification()
-            }
-        }
+        return alertDialogBuilder
     }
 
     /**
@@ -199,7 +211,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     fun stopMonitor() {
         Log.i(TAG, "inside stopMonitor")
         /* Reset oldTimestamp to null in case tunnel is turned on again */
-        oldTimestamp = null
+        mOldTimestamp = null
         /* Set run to false so while-loop in startMonitor() is ended */
         run.set(false)
     }
@@ -208,43 +220,40 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to monitor for new timestamp. If new timestamp then calculate newPSK and load it to backend.
      */
     private suspend fun monitor() {
-        newTimestamp = HWTimestamp().timestamp.toString()
+        /* Get current timestamp */
+        val currentTimestamp = HWTimestamp().timestamp.toString()
         /* Check if timestamp changed */
-        if(newTimestamp != oldTimestamp) {
-            /* Check which mode is selected in preferences */
-            val hwBackend = mPref.getString("dropdown", "none")
-            /* Check which mode is selected */
-            if (hwBackend == "SmartCardHSM") {
+        if(currentTimestamp != mOldTimestamp) {
+            /* Check which hwBackend */
+            if (mHWBackend == "SmartCardHSM") {
                 Log.i(TAG, "Using SmartCard-HSM...")
                 /* reload PSK with newTimestamp signed by SmartCard-HSM */
-                hsmOperation(newTimestamp!!)
-            } else if (hwBackend == "AndroidKeyStore") {
+                hsmOperation(currentTimestamp!!)
+            } else if (mHWBackend == "AndroidKeyStore") {
                 Log.i(TAG, "Using AndroidKeyStore...")
                 /* Check for minimum version to run app */
                 if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     /* reload PSK with newTimestamp signed by Android KeyStore */
-                    keyStoreOperation(newTimestamp!!)
-                }else{
-                    Toast.makeText(mContext, "Android version not high enough for key usage.", Toast.LENGTH_LONG).show()
-                    Log.i(TAG, "Android version not high enough for key usage.")
+                    keyStoreOperation(currentTimestamp!!)
                 }
             }
             /* update reference timestamp */
-            oldTimestamp = newTimestamp
+            mOldTimestamp = currentTimestamp
         }
     }
 
     /**
      * Function to update PSK with new timestamp by using SmartCard-HSM.
+     * SmartCard-HSM does not need notification because PIN is valid for the whole time.
      */
     private fun hsmOperation(timestamp: String) {
         val hsmManager = HWHSMManager(mContext)
-        /* Use SmartCardHSMCardService to perform operation on SmartCard-HSM */
         /* Check which algorithm to use (RSA or AES) */
-        val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
-        var newPSK: Key = if(keyAlgo == "RSA") {
+        var newPSK: Key = if(mKeyAlgo == "RSA") {
+            /* Use RSA */
             hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
         }else{
+            /* Use AES */
             hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.AES, smartCardService, timestamp, 0x1)
         }
         /* Load newPSK into GoBackend */
@@ -254,31 +263,33 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
 
     /**
      * Function to update PSK with new timestamp by using Android KeyStore.
+     * Android KeyStore needs notifications because in order to use key, biometric authentication must have been used in the last 6 hours.
      */
-    @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun keyStoreOperation(timestamp: String) {
+        /* Check for minimum version to run app */
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            /* if app is in background -> Notification is sent and startBiometricPrompt set to true
-            * setBiometricPrompt is checked in onResume() of BaseFragment where keyStoreOperation is called */
+            /* Check if app is in foreground */
             if(!isAppInForeground()) {
+                /* App is in background => add notification */
                 addNotification()
+                /* startBiometricPrompt is checked onResume of app */
                 startBiometricPrompt = true
-            /* if app is in foreground -> keyStoreOperation direct */
             }else{
+                /* App is in foreground => perform operation */
                 val keyStoreManager = HWKeyStoreManager(mContext)
-                //Debug.startMethodTracing("demo.trace")
                 /* Check which algorithm to use (RSA or AES) */
-                val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
-                var newPSK: Key = if(keyAlgo == "RSA") {
+                var newPSK: Key = if(mKeyAlgo == "RSA") {
+                    /* Use RSA */
                     keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
                 }else{
+                    /* Use AES */
                     keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
                 }
-                //Debug.stopMethodTracing()
+                /* Get config so we can set new PSK and load config into WireGuardGo Backend */
                 val config = mTunnel!!.getConfigAsync()
-                /* delay to make sure that config is loaded */
-                // TODO: find better solution
+                /* Delay to make sure that config is loaded */
                 delay(500)
+                /* Make sure newPSK is not null */
                 if(newPSK != null) {
                     loadNewPSK(config, newPSK)
                 }
@@ -309,7 +320,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to show notification to authenticate user (SmartCard-HSM with Pin, KeyStores with BiometricPrompt)
      */
     @SuppressLint("UnspecifiedImmutableFlag")
-    @RequiresApi(Build.VERSION_CODES.O)
     fun addNotification() {
         Log.i(TAG, "Started addNotification")
         val mBuilder = NotificationCompat.Builder(mContext, "notify_001")
@@ -352,7 +362,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
 
         mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build())
     }
-
 
     /**
      * Function to check if app is in background. HWApplication.isActivityVisible() is defined in HWApplication class.
