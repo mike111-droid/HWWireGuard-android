@@ -59,7 +59,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         super.onResume()
         Log.i(TAG, "onResume called...")
         if(monitor.startBiometricPrompt) {
-            val keyStoreManager =  HWKeyStoreManager(requireContext())
+            val keyStoreManager =  HWKeyStoreManager()
             /* Check which algorithm to use (RSA or AES) */
             if(monitor.mKeyAlgo == "RSA") {
                 keyStoreManager.keyStoreOperation(HWTimestamp().timestamp.toString(), "rsa_key", monitor.getTunnel()!!, monitor)

@@ -21,7 +21,6 @@ extern char *wgVersion();
 
 /* Custom change begin */
 JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_loadPSK(JNIEnv * env, jclass clazz, jint handle, jstring settings) {
-    // TODO: implement loadPSK()
     const char *settings_str = (*env)->GetStringUTFChars(env, settings, 0);
     size_t settings_len = (*env)->GetStringUTFLength(env, settings);
     int ret = loadPSK(handle,

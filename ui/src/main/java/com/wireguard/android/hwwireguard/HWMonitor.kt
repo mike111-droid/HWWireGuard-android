@@ -51,7 +51,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         const val NOTIFICATION_ID = 0
     }
 
-
     /* Atomic boolean to stay the same across multiple process and control monitor process */
     private var run: AtomicBoolean = AtomicBoolean(false)
     /* Variable to save old timestamp for comparison */
@@ -63,7 +62,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     val mFragment: Fragment = fragment
     /* Variable to lookup which tunnel this monitor observes */
     private var mTunnel: ObservableTunnel? = null
-
     @kotlin.jvm.JvmField
     var startBiometricPrompt: Boolean = false
     /* isTunnelSet makes sure that mTunnel is only set once */
@@ -93,11 +91,10 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 /* Start monitor process that updates PSK with every changing timestamp */
                 while(run.get()) {
                     monitor()
-                    delay(3000)
                 }
             /* Catch all expression that might be thrown by the SmartCard-HSM */
             } catch (e: Exception) {
-                Log.i(TAG, Log.getStackTraceString(e))
+                Log.e(TAG, Log.getStackTraceString(e))
             } finally {
                 /* Make sure to shutdown SmartCard-HSM */
                 if (mHWBackend == "SmartCardHSM") {
@@ -105,7 +102,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                         Log.i(TAG, "Shutting down.")
                         SmartCard.shutdown()
                     } catch (e: Exception) {
-                        Log.i(TAG, Log.getStackTraceString(e))
+                        Log.e(TAG, Log.getStackTraceString(e))
                     }
                 }
             }
@@ -221,6 +218,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to monitor for new timestamp. If new timestamp then calculate newPSK and load it to backend.
      */
     private suspend fun monitor() {
+        delay(3000)
         /* Get current timestamp */
         val currentTimestamp = HWTimestamp().timestamp.toString()
         /* Check if timestamp changed */
@@ -266,10 +264,10 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to update PSK with new timestamp by using Android KeyStore.
      * Android KeyStore needs notifications because in order to use key, biometric authentication must have been used in the last 6 hours.
      */
-    private suspend fun keyStoreOperation(timestamp: String) {
+    private fun keyStoreOperation(timestamp: String) {
         /* Check for minimum version to run app */
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val keyStoreManager = HWKeyStoreManager(mContext)
+            val keyStoreManager = HWKeyStoreManager()
             /* Check which algorithm to use (RSA or AES) */
             var newPSK: Key = if (mKeyAlgo == "RSA") {
                 /* Use RSA */
@@ -279,10 +277,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
             }
             /* Get config so we can set new PSK and load config into WireGuardGo Backend */
-            val config = mTunnel!!.getConfigAsync()
-            /* Delay to make sure that config is loaded */
-            delay(500)
-            /* Make sure newPSK is not null */
+            val config = mTunnel!!.config ?: return
+            /* Make sure newPSK is not null (newPSK can be null if keyStoreOperationWithBio was used which automatically loads newPSK) */
             if (newPSK != null) {
                 loadNewPSK(config, newPSK)
             }

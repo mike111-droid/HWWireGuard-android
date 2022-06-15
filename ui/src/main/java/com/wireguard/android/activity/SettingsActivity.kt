@@ -85,7 +85,7 @@ class SettingsActivity : ThemeChangeAwareActivity() {
             }
             /* Custom change begin */
             preferenceManager.findPreference<Preference>("import_rsa")?.setOnPreferenceClickListener {
-                val keyStoreManager = HWKeyStoreManager(context)
+                val keyStoreManager = HWKeyStoreManager()
                 keyStoreManager.deleteKey("rsa_key")
                 val ret = keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
                 if(ret) {
@@ -96,7 +96,7 @@ class SettingsActivity : ThemeChangeAwareActivity() {
                 true
             }
             preferenceManager.findPreference<Preference>("import_aes")?.setOnPreferenceClickListener {
-                val keyStoreManager = HWKeyStoreManager(context)
+                val keyStoreManager = HWKeyStoreManager()
                 keyStoreManager.deleteKey("aes_key")
                 val ret = keyStoreManager.addKeyStoreKeyAES("aes_key", "key.txt")
                 if(ret) {
