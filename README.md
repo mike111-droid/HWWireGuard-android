@@ -13,7 +13,7 @@ The main new classes are in the *ui* package in the subfolder *hwwireguard*. Oth
 
 ```
 $ git clone --recurse-submodules https://github.com/mike111-droid/HWWireGuard-android
-$ git clone https://github.com/mike111-droid/WireGuardHSM-androidGoBackend
+$ git clone https://github.com/mike111-droid/WireGuardHSM-androidGoBackendmod
 $ cd WireGuardHSM-android
 $ ./gradlew assembleRelease
 ```
