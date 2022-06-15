@@ -51,6 +51,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         const val NOTIFICATION_ID = 0
     }
 
+
     /* Atomic boolean to stay the same across multiple process and control monitor process */
     private var run: AtomicBoolean = AtomicBoolean(false)
     /* Variable to save old timestamp for comparison */
@@ -63,6 +64,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /* Variable to lookup which tunnel this monitor observes */
     private var mTunnel: ObservableTunnel? = null
 
+    @kotlin.jvm.JvmField
     var startBiometricPrompt: Boolean = false
     /* isTunnelSet makes sure that mTunnel is only set once */
     private var isTunnelSet: Boolean = false
@@ -164,11 +166,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * The session is ended with the closing of the tunnel.
      */
     private fun authenticateHSM(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager) {
-        /* Construct alert dialog */
-        val edittext = EditText(mContext)
-        edittext.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        edittext.transformationMethod = PasswordTransformationMethod.getInstance()
-        var alertDialogBuilder = getHSMAlertDialogBuilder(schsmcs, hsmManager, edittext)
+        /* Get alertDialogBuilder for user authentication with PIN */
+        var alertDialogBuilder = getHSMAlertDialogBuilder(schsmcs, hsmManager)
         /* If app is not in foreground add notification */
         val alertDialog: AlertDialog = alertDialogBuilder.create()
         /* Show alert dialog */
@@ -177,7 +176,11 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /**
      * Function to get AlertDialogBuilder for HSM authentication.
      */
-    private fun getHSMAlertDialogBuilder(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager, edittext: EditText): AlertDialog.Builder {
+    private fun getHSMAlertDialogBuilder(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager): AlertDialog.Builder {
+        /* Construct alert dialog */
+        val edittext = EditText(mContext)
+        edittext.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        edittext.transformationMethod = PasswordTransformationMethod.getInstance()
         /* Get AlertDialogBuilder with mContext */
         val alertDialogBuilder: AlertDialog.Builder = AlertDialog.Builder(mContext)
         /* Set displayed text and textedit */
@@ -266,36 +269,27 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private suspend fun keyStoreOperation(timestamp: String) {
         /* Check for minimum version to run app */
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            /* Check if app is in foreground */
-            if(!isAppInForeground()) {
-                /* App is in background => add notification */
-                addNotification()
-                /* startBiometricPrompt is checked onResume of app */
-                startBiometricPrompt = true
-            }else{
-                /* App is in foreground => perform operation */
-                val keyStoreManager = HWKeyStoreManager(mContext)
-                /* Check which algorithm to use (RSA or AES) */
-                var newPSK: Key = if(mKeyAlgo == "RSA") {
-                    /* Use RSA */
-                    keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
-                }else{
-                    /* Use AES */
-                    keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
-                }
-                /* Get config so we can set new PSK and load config into WireGuardGo Backend */
-                val config = mTunnel!!.getConfigAsync()
-                /* Delay to make sure that config is loaded */
-                delay(500)
-                /* Make sure newPSK is not null */
-                if(newPSK != null) {
-                    loadNewPSK(config, newPSK)
-                }
-                /* Delete pin notification */
-                val notificationManager =
-                    mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
-                notificationManager!!.cancel(NOTIFICATION_ID)
+            val keyStoreManager = HWKeyStoreManager(mContext)
+            /* Check which algorithm to use (RSA or AES) */
+            var newPSK: Key = if (mKeyAlgo == "RSA") {
+                /* Use RSA */
+                keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+            } else {
+                /* Use AES */
+                keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
             }
+            /* Get config so we can set new PSK and load config into WireGuardGo Backend */
+            val config = mTunnel!!.getConfigAsync()
+            /* Delay to make sure that config is loaded */
+            delay(500)
+            /* Make sure newPSK is not null */
+            if (newPSK != null) {
+                loadNewPSK(config, newPSK)
+            }
+            /* Delete pin notification */
+            val notificationManager =
+                mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
+            notificationManager!!.cancel(NOTIFICATION_ID)
         }
     }
 
@@ -364,7 +358,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /**
      * Function to check if app is in background. HWApplication.isActivityVisible() is defined in HWApplication class.
      */
-    private fun isAppInForeground(): Boolean {
+    fun isAppInForeground(): Boolean {
         return HWApplication.isActivityVisible()
     }
 

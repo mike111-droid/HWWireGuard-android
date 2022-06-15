@@ -223,7 +223,16 @@ public class HWKeyStoreManager {
      * Function that calls BiometricPrompt (which automatically loads new PSK into backend)
      */
     public void keyStoreOperationWithBio(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor) {
-        biometricAuthenticator.keyStoreOperation(input, alias, tunnel, monitor);
+        if(!monitor.isAppInForeground()) {
+            /* App is in background => add notification */
+            monitor.addNotification();
+            /* startBiometricPrompt is checked onResume of app */
+            monitor.startBiometricPrompt = true;
+            return;
+        }else{
+            /* App is in foreground */
+            biometricAuthenticator.keyStoreOperation(input, alias, tunnel, monitor);
+        }
     }
 
     /**
