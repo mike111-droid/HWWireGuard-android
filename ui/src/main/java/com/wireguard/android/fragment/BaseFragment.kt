@@ -31,6 +31,7 @@ import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.applicationScope
 import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
+import com.wireguard.android.hwwireguard.crypto.HWTimestamp
 import com.wireguard.crypto.Key
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -63,16 +64,16 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         if(monitor.startBiometricPrompt) {
             val keyStoreManager =  HWKeyStoreManager()
             /* Check which algorithm to use (RSA or AES) */
-            val keyAlgo = monitor.mPref.getString("dropdownAlgorithms", "none")
-            var newPSK: Key = if(keyAlgo == "RSA") {
-                keyStoreManager.keyStoreOperation(monitor.newTimestamp!!, "rsa_key", monitor.getTunnel()!!, monitor)
-            }else{
-                keyStoreManager.keyStoreOperation(monitor.newTimestamp!!, "aes_key", monitor.getTunnel()!!, monitor)
+            for((peer, value) in monitor.missingPeerOperationsKeyStore) {
+                if(monitor.mKeyAlgo == "RSA") {
+                    keyStoreManager.keyStoreOperation(value, "rsa_key", monitor.getTunnel()!!, monitor, peer)
+                }else{
+                    keyStoreManager.keyStoreOperation(value, "aes_key", monitor.getTunnel()!!, monitor, peer)
+                }
             }
-            if(newPSK != null) {
-                monitor.initPSK = newPSK
-            }
+            /* Set indicator to false */
             monitor.startBiometricPrompt = false
+            /* Delete notifications again */
             val notificationManager =
                 requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
             notificationManager!!.cancel(HWMonitor.NOTIFICATION_ID)
@@ -115,19 +116,21 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }
 
             /* Custom change begin */
-            if(PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
+            if(monitor.mHWBackend != "none") {
+                /* HWBackend is AndroidKeyStore or SmartCard-HSM */
                 if(checked) {
                     Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
+                    /* Tunnel must be set before startMonitor() */
                     monitor.setTunnel(tunnel)
                     monitor.startMonitor()
                 } else {
                     Log.i(TAG, "Tunnel state is down, so we stop the Monitor.")
                     monitor.stopMonitor()
-                    /* reset monitor */
-                    monitor = HWMonitor(requireContext(), requireActivity(), monitor.mFragment)
                 }
             }else{
+                /* HWBackend is none (neither AndroidKeyStore nor SmartCard-HSM) */
                 if(checked) {
+                    /* load config to make sure PSK of config is in backend */
                     val config = tunnel.getConfigAsync()
                     delay(1000)
                     HWApplication.getBackend().addConf(config)

@@ -17,6 +17,7 @@ import android.util.Log;
 import com.wireguard.android.hwwireguard.HWMonitor;
 import com.wireguard.android.model.ObservableTunnel;
 import com.wireguard.config.Config;
+import com.wireguard.config.Peer;
 import com.wireguard.crypto.Key;
 import com.wireguard.crypto.KeyFormatException;
 import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey.HardwareType;
@@ -140,7 +141,6 @@ public class HWKeyStoreManager {
 
     /**
      * Function to add new RSA key to AndroidKeyStore.
-     * // TODO: Prevent delimiter char '=' from being in Alias (and UNSELECTED)
      * @param crtFile: Name of file in Downloads with pem or der certificate.
      * @param keyFile: Name of file in Downloads in PKCS#8 form.
      * @param   alias: Alias of key.
@@ -172,10 +172,7 @@ public class HWKeyStoreManager {
         final String pathKey = Environment.getExternalStorageDirectory() + File.separator + "Download" + File.separator + keyFile;
         Log.i(TAG, "Using this path for private key: " + pathKey);
         final byte[] fileContentKey = Files.readAllBytes(Paths.get(pathKey));
-        final PrivateKey privateKey =
-                KeyFactory.getInstance("RSA").generatePrivate(
-                        new PKCS8EncodedKeySpec(fileContentKey));
-        return privateKey;
+        return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(fileContentKey));
     }
 
     /**
@@ -187,10 +184,7 @@ public class HWKeyStoreManager {
         final String pathCrt = Environment.getExternalStorageDirectory() + File.separator + "Download" + File.separator + crtFile;
         Log.i(TAG, "Using this path for cert: " + pathCrt);
         final byte[] fileContentCrt = Files.readAllBytes(Paths.get(pathCrt));
-        final Certificate cert =
-                CertificateFactory.getInstance("X.509").generateCertificate(
-                        new ByteArrayInputStream(fileContentCrt));
-        return cert;
+        return CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(fileContentCrt));
     }
 
     /**
@@ -210,12 +204,10 @@ public class HWKeyStoreManager {
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                         .setUserAuthenticationRequired(true)
-                        /* one hour -> maybe higher better */
                         .setUserAuthenticationValidityDurationSeconds(6*60*60)
                         .build());
     }
 
-    // TODO: clean up catch clause
     /**
      * Function for keyStoreOperation.
      * @param input  : Timestamp/Init that will be signed/encrypted.
@@ -224,13 +216,12 @@ public class HWKeyStoreManager {
      * @param monitor: Monitor for access to biometricAuthenticator functions.
      * @return       : Key with new PSK if no BiometricPrompt. Null if BiometricPrompt.
      */
-    public Key keyStoreOperation(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor) {
+    public Key keyStoreOperation(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor, Peer peer) {
         try {
-            Key newPSK = keyStoreOperationNoBio(input, alias, tunnel, monitor);
-            return newPSK;
+            return keyStoreOperationNoBio(input, alias, tunnel, monitor);
         } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | UnrecoverableEntryException | KeyFormatException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException | SignatureException e) {
             Log.i(TAG, "We have to use withBio");
-            keyStoreOperationWithBio(input, alias, tunnel, monitor);
+            keyStoreOperationWithBio(input, alias, tunnel, monitor, peer);
             return null;
         }
     }
@@ -238,8 +229,18 @@ public class HWKeyStoreManager {
     /**
      * Function that calls BiometricPrompt (which automatically loads new PSK into backend)
      */
-    public void keyStoreOperationWithBio(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor) {
-        biometricAuthenticator.keyStoreOperation(input, alias, tunnel, monitor);
+    public void keyStoreOperationWithBio(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor, Peer peer) {
+        if(monitor.isAppInForeground()) {
+            /* App is in foreground */
+            biometricAuthenticator.keyStoreOperation(input, alias, tunnel, monitor, peer);
+        } else {
+            /* Add peer with input to missingPeerOperationsKeyStore */
+            monitor.getMissingPeerOperationsKeyStore().put(peer, input);
+            /* App is in background => add notification */
+            monitor.addNotification();
+            /* startBiometricPrompt is checked onResume of app */
+            monitor.startBiometricPrompt = true;
+        }
     }
 
     /**

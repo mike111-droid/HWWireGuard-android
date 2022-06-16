@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.wireguard.android.hwwireguard.HWMonitor
 import com.wireguard.android.model.ObservableTunnel
+import com.wireguard.config.Peer
 import java.security.KeyStore
 import java.security.Signature
 import javax.crypto.Cipher
@@ -27,7 +28,8 @@ class HWBiometricAuthenticator {
         input: String,
         alias: String,
         tunnel: ObservableTunnel,
-        monitor: HWMonitor
+        monitor: HWMonitor,
+        peer: Peer?
     ) {
         val keyStore = KeyStore.getInstance("AndroidKeyStore")
         keyStore.load(null)
@@ -66,7 +68,7 @@ class HWBiometricAuthenticator {
                 val newPSK = HWKeyStoreManager.bytesToKey(HWKeyStoreManager.sha256(result))
                 monitor.initPSK = newPSK
                 Log.i(TAG, "Loading PSK " + newPSK.toBase64())
-                monitor.loadNewPSK(config, newPSK)
+                monitor.loadNewPSK(config, newPSK, peer)
             }
 
             override fun onAuthenticationFailed() {
