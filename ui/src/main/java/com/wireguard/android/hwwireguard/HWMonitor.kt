@@ -34,6 +34,7 @@ import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.applicationScope
 import com.wireguard.config.Config
+import com.wireguard.config.Peer
 import com.wireguard.crypto.Key
 import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMCardService
 import kotlinx.coroutines.delay
