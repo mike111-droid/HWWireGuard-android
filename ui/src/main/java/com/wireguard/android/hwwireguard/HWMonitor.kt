@@ -234,7 +234,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     private suspend fun monitor() {
         /* Delay to minimize CPU usage (do not need checks every second) */
-        delay(3000)
+        delay(5000)
         /* Get current timestamp */
         val currentTimestamp = HWTimestamp().timestamp.toString()
         /* Check if timestamp changed */
@@ -335,11 +335,14 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to ratchet PSK for specific peer.
      */
     private fun ratchet(config: Config, peer: Peer) {
+        Log.i(TAG, "Starting ratchet()...")
         for((counter, peerIteration) in config.peers.withIndex()) {
             /* find specific peer */
             if(peerIteration == peer) {
+                Log.i(TAG, "Found correct peer $peer")
                 val psk = config.peers[counter].preSharedKey.get()
-                if(mHWBackend == "SmartCard-HSM") {
+                Log.i(TAG, "psk of this peer is ${psk.toBase64()}")
+                if(mHWBackend == "SmartCardHSM") {
                     Log.i(TAG, "Using SmartCard-HSM...")
                     /* reload PSK with newTimestamp signed by SmartCard-HSM */
                     hsmOperation(psk.toBase64(), peerIteration)
@@ -367,6 +370,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.AES, smartCardService, timestamp, 0x1)
         }
         /* Load newPSK into GoBackend */
+        Log.i(TAG, "newPSK is ${newPSK.toBase64()}")
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, newPSK, peer)
         initPSK = newPSK
