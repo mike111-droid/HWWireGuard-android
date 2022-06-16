@@ -77,10 +77,8 @@ public class HWKeyStoreManager {
     /**
      * HWBiometricAuthenticator has keyStoreOperation function with BiometricPrompt.
      */
-    public HWBiometricAuthenticator biometricAuthenticator = new HWBiometricAuthenticator();
+    private HWBiometricAuthenticator biometricAuthenticator = new HWBiometricAuthenticator();
     private static final String TAG = "WireGuard/KeyStoreManager";
-
-    public HWKeyStoreManager() {}
 
     /**
      * Function to remove key from AndroidKeyStore.
@@ -204,7 +202,7 @@ public class HWKeyStoreManager {
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                         .setUserAuthenticationRequired(true)
-                        .setUserAuthenticationValidityDurationSeconds(60)
+                        .setUserAuthenticationValidityDurationSeconds(6*60*60)
                         .build());
     }
 
@@ -216,7 +214,7 @@ public class HWKeyStoreManager {
      * @param monitor: Monitor for access to biometricAuthenticator functions.
      * @return       : Key with new PSK if no BiometricPrompt. Null if BiometricPrompt.
      */
-    public Key keyStoreOperation(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor, Peer peer) {
+    public Key keyStoreOperation(final String input, final String alias, final ObservableTunnel tunnel, final HWMonitor monitor, final Peer peer) {
         try {
             return keyStoreOperationNoBio(input, alias, tunnel, monitor);
         } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | UnrecoverableEntryException | KeyFormatException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException | SignatureException e) {
@@ -229,7 +227,7 @@ public class HWKeyStoreManager {
     /**
      * Function that calls BiometricPrompt (which automatically loads new PSK into backend)
      */
-    public void keyStoreOperationWithBio(String input, String alias, ObservableTunnel tunnel, HWMonitor monitor, Peer peer) {
+    private void keyStoreOperationWithBio(final String input, final String alias, final ObservableTunnel tunnel, final HWMonitor monitor, final Peer peer) {
         if(monitor.isAppInForeground()) {
             /* App is in foreground */
             biometricAuthenticator.keyStoreOperation(input, alias, tunnel, monitor, peer);
@@ -249,11 +247,11 @@ public class HWKeyStoreManager {
      * @param init   : Input to sign or encrypt.
      * @return       : Key for newPSK.
      */
-    public Key keyStoreOperationNoBio(final String init, final String alias, final ObservableTunnel tunnel, final HWMonitor monitor) throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException, UnrecoverableEntryException, KeyFormatException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, SignatureException {
+    private Key keyStoreOperationNoBio(final String init, final String alias, final ObservableTunnel tunnel, final HWMonitor monitor) throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException, UnrecoverableEntryException, KeyFormatException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, SignatureException {
         Key newPSK = null;
         final KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
         keyStore.load(null);
-        KeyStore.Entry keyEntry = keyStore.getEntry(alias, null);
+        final KeyStore.Entry keyEntry = keyStore.getEntry(alias, null);
         if(keyEntry instanceof KeyStore.SecretKeyEntry) {
             newPSK =  aesOperation(keyEntry, init.getBytes(StandardCharsets.UTF_8));
         } else if(keyEntry instanceof KeyStore.PrivateKeyEntry) {
@@ -277,7 +275,7 @@ public class HWKeyStoreManager {
 
         /* Sign initBytes with SHA256WithRSA */
         sig.update(initBytes);
-        byte[] signature = sig.sign();
+        final byte[] signature = sig.sign();
         return bytesToKey(sha256(signature));
     }
 
@@ -290,7 +288,7 @@ public class HWKeyStoreManager {
     @NonNull private Key aesOperation(final KeyStore.Entry keyEntry, final byte[] initBytes) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, KeyFormatException, IllegalBlockSizeException, BadPaddingException {
         @SuppressLint("GetInstance") final Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, ((KeyStore.SecretKeyEntry) keyEntry).getSecretKey());
-        byte[] digest = sha256(initBytes);
+        final byte[] digest = sha256(initBytes);
 
         /* Encrypt with AES */
         return bytesToKey(sha256(cipher.doFinal(digest)));

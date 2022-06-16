@@ -62,7 +62,6 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         super.onResume()
         Log.i(TAG, "onResume called...")
         if(monitor.startBiometricPrompt) {
-            val keyStoreManager =  HWKeyStoreManager()
             /* Check which algorithm to use (RSA or AES) */
             for((peer, value) in monitor.missingPeerOperationsKeyStore) {
                 Log.i(TAG, "peer: $peer")
@@ -133,6 +132,10 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                     delay(1000)
                     HWApplication.getBackend().addConf(config)
                 }
+            }
+            /* Wait for shutdownLock to be opened */
+            while(monitor.shutdownLock.get()) {
+                delay(500)
             }
             /* Custom change end */
             setTunnelStateWithPermissionsResult(tunnel, checked)

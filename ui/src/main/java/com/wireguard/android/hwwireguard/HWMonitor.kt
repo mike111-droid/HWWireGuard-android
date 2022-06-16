@@ -40,8 +40,6 @@ import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMCardService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import opencard.core.service.SmartCard
-import java.util.LinkedList
-import java.util.Queue
 import java.util.concurrent.atomic.AtomicBoolean
 
 
@@ -85,6 +83,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     var mLastHandshakeTime: HashMap<Key, Int> = HashMap()
     /* save current initPSK */
     lateinit var initPSK: Key
+    /* Boolean to check if already ratcheted within the 20 handshake cycle */
+    var alreadyResetOnce = false
+    var alreadyResetTwice = false
     
 
     /**
@@ -107,7 +108,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 mOldTimestamp = null
             /* Catch all expression that might be thrown by the SmartCard-HSM */
             } catch (e: Exception) {
-                Log.i(TAG, Log.getStackTraceString(e));
+                Log.i(TAG, Log.getStackTraceString(e))
             } finally {
                 /* Make sure to shutdown SmartCard-HSM */
                 if (mHWBackend == "SmartCardHSM") {
@@ -219,14 +220,10 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /**
      * Function to stop monitor process.
      */
-    suspend fun stopMonitor() {
+    fun stopMonitor() {
         Log.i(TAG, "inside stopMonitor")
         /* Set run to false so while-loop in startMonitor() is ended */
         run.set(false)
-        /* Wait for shutdownLock to be opened */
-        while(shutdownLock.get()) {
-            delay(1000)
-        }
     }
 
     /**
@@ -237,7 +234,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         /* Delay to minimize CPU usage (do not need checks every second) */
         delay(3000)
         /* Get current timestamp */
-        var currentTimestamp = HWTimestamp().timestamp.toString()
+        val currentTimestamp = HWTimestamp().timestamp.toString()
         /* Check if timestamp changed */
         if(currentTimestamp != mOldTimestamp) {
             Log.i(TAG, "newTimestamp is a different one from oldTimestamp...")
@@ -259,12 +256,14 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     }
 
     /**
-     * Function
+     * Function to check if handshake was successful.
+     * -> if yes: ratchet with oldPSK
+     * -> if no: continue
+     * Function also checks how many failed handshakes.
+     * -> if 6 failed: reset with initPSK
+     * -> if 13 failed: reset with currentTimestamp
      */
     private suspend fun monitorV2Extension() {
-        /* Check if handshake successful
-        * -> if yes: ratchet with oldPSK
-        * -> if no:  continue */
         /* Get statistics from WireGuardGo backend */
         val config = mTunnel!!.config ?: return
         if(!run.get()) return
@@ -278,39 +277,54 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 mLastHandshakeTime[peer.publicKey] = 0
             }
             /* Check if LastHandshakeTime changed */
-            if (peer != null && lastHandshakeTime[peer.publicKey] != mLastHandshakeTime[peer.publicKey]) {
+            if (lastHandshakeTime[peer.publicKey] != mLastHandshakeTime[peer.publicKey]) {
                 /* Handshake was successful (change saved mLastHandshakeTime and ratchet) */
                 lastHandshakeTime[peer.publicKey]?.let { mLastHandshakeTime.put(peer.publicKey, it) }
                 Log.i(TAG, "handshake was successful... Do ratchet...")
                 ratchet(config, peer)
             }
             /* Check failed handshake attempts */
-            var handshakeAttempt = stats.handshakeAttempts[peer.publicKey]
-            if (handshakeAttempt != null) {
-                /* mod 20 in case handshakeAttempts go higher than 20 */
-                //handshakeAttempt = handshakeAttempt.mod(20)
-                /* if handshakeAttempt%20==6 => reset PSK with saved initPSK */
-                if (handshakeAttempt == 6) {
-                    /* Reset PSK for exact peer */
-                    Log.i(TAG, "We are out of sync. So reset oldTimestamp")
-                    Log.i(TAG, "initPSK: ${initPSK.toBase64()}")
-                    loadNewPSK(config, initPSK, peer)
+            val handshakeAttempts = stats.handshakeAttempts[peer.publicKey]
+            handleFailedHandshake(handshakeAttempts, config, peer)
+        }
+    }
+
+    /**
+     * Function to handle failed handshakes.
+     * -> if 6 failed: reset with initPSK
+     * -> if 13 failed: reset with currentTimestamp
+     */
+    private fun handleFailedHandshake(handshakeAttempts: Int?, config: Config, peer: Peer?) {
+        if (handshakeAttempts != null) {
+            /* mod 20 in case handshakeAttempts go higher than 20 */
+            val handshakeAttemptsMod = handshakeAttempts.mod(20)
+            if (handshakeAttemptsMod == 0) {
+                alreadyResetOnce = false
+                alreadyResetTwice = false
+            }
+            /* if handshakeAttempt%20==6 => reset PSK with saved initPSK */
+            if (handshakeAttemptsMod == 6 && !alreadyResetOnce) {
+                /* Reset PSK for exact peer */
+                Log.i(TAG, "We are out of sync. So reset oldTimestamp")
+                Log.i(TAG, "initPSK: ${initPSK.toBase64()}")
+                loadNewPSK(config, initPSK, peer)
+                alreadyResetOnce = true
+            }
+            /* if handshakeAttempt%20==13 => reset PSK with newly calculated PSK from current timestamp (in case saved initPSK is false) */
+            if (handshakeAttemptsMod == 13 && !alreadyResetTwice) {
+                val currentTimestamp = HWTimestamp().timestamp.toString()
+                if (mHWBackend == "SmartCardHSM") {
+                    Log.i(TAG, "Resetting using SmartCard-HSM...")
+                    /* reload PSK with newTimestamp signed by SmartCard-HSM */
+                    hsmOperation(currentTimestamp, peer)
+                } else if (mHWBackend == "AndroidKeyStore") {
+                    Log.i(TAG, "Resetting using AndroidKeyStore...")
+                    /* reload PSK with newTimestamp signed by Android KeyStore */
+                    keyStoreOperation(currentTimestamp, peer)
                 }
-                /* if handshakeAttempt%20==13 => reset PSK with newly calculated PSK from current timestamp (in case saved initPSK is false) */
-                if (handshakeAttempt == 13) {
-                    var currentTimestamp = HWTimestamp().timestamp.toString()
-                    if (mHWBackend == "SmartCardHSM") {
-                        Log.i(TAG, "Resetting using SmartCard-HSM...")
-                        /* reload PSK with newTimestamp signed by SmartCard-HSM */
-                        hsmOperation(currentTimestamp, peer)
-                    } else if (mHWBackend == "AndroidKeyStore") {
-                        Log.i(TAG, "Resetting using AndroidKeyStore...")
-                        /* reload PSK with newTimestamp signed by Android KeyStore */
-                        keyStoreOperation(currentTimestamp, peer)
-                    }
-                    /* update reference timestamp for all peers */
-                    mOldTimestamp = currentTimestamp
-                }
+                alreadyResetTwice = true
+                /* update reference timestamp for all peers */
+                mOldTimestamp = currentTimestamp
             }
         }
     }
@@ -319,20 +333,19 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to ratchet PSK for specific peer.
      */
     private fun ratchet(config: Config, peer: Peer) {
-        var configCopy = config
         val ratchetManager = HWRatchetManager()
-        for((counter, peerIter) in config.peers.withIndex()) {
+        for((counter, peerIteration) in config.peers.withIndex()) {
             /* find specific peer */
-            if(peerIter == peer) {
-                val psk = configCopy.peers[counter].preSharedKey.get()
+            if(peerIteration == peer) {
+                val psk = config.peers[counter].preSharedKey.get()
                 val newPSK = ratchetManager.ratchet(psk)
                 /* ratchet() can fail on some inputs => if this is the case use initPSK */
                 if(newPSK == null) {
                     Log.i(TAG, "newPSK return as null from ratchetManager")
-                    loadNewPSK(configCopy, initPSK, peer)
+                    loadNewPSK(config, initPSK, peer)
                 }else{
                     Log.i(TAG, "newPSK is ${newPSK.toBase64()}")
-                    loadNewPSK(configCopy, newPSK, peer)
+                    loadNewPSK(config, newPSK, peer)
                 }
             }
         }
@@ -406,6 +419,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 }
                 Log.i(TAG, "PSK after: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peerIterate.publicKey]!!.toBase64())
                 shutdownLock.set(false)
+                if(!run.get()) return@launch
             }
         }
     }
