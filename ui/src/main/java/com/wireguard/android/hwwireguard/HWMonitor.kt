@@ -77,6 +77,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     var mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
     /* List of peers that still need to have keyStoreOperation performed for them because authentication expired */
     val missingPeerOperationsKeyStore: HashMap<Peer?, String> = HashMap()
+    /* Shutdown lock so access to backend does not happen when shutdown */
+    var shutdownLock: AtomicBoolean = AtomicBoolean(false)
 
     /* Added member variables for Version 2 */
     /* List with lastHandshakeTime of peer */
@@ -217,10 +219,14 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /**
      * Function to stop monitor process.
      */
-    fun stopMonitor() {
+    suspend fun stopMonitor() {
         Log.i(TAG, "inside stopMonitor")
         /* Set run to false so while-loop in startMonitor() is ended */
         run.set(false)
+        /* Wait for shutdownLock to be opened */
+        while(shutdownLock.get()) {
+            delay(1000)
+        }
     }
 
     /**
@@ -261,10 +267,10 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         * -> if no:  continue */
         /* Get statistics from WireGuardGo backend */
         val config = mTunnel!!.config ?: return
-        if(!run.get()) {
-            return
-        }
+        if(!run.get()) return
+        shutdownLock.set(true)
         val stats = HWApplication.getBackend().getStatistics(mTunnel)
+        shutdownLock.set(false)
         val lastHandshakeTime = stats.lastHandshakeTime
         /* Iterate through peers to check if successful handshake occurred */
         for (peer in config.peers) {
@@ -387,9 +393,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     fun loadNewPSK(config: Config, newPSK: Key,  peer: Peer?) {
         mActivity.applicationScope.launch {
             for((counter, peerIterate) in config.peers.withIndex()) {
-                if(!run.get()) {
-                    return@launch
-                }
+                if(!run.get()) return@launch
+                shutdownLock.set(true)
                 Log.i(TAG, "PSK before: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peerIterate.publicKey]!!.toBase64())
                 if(peer == null) {
                     config.peers[counter].setPreSharedKey(newPSK)
@@ -399,10 +404,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                     config.peers[counter].setPreSharedKey(newPSK)
                     HWApplication.getBackend().addPSK(config)
                 }
-                if(!run.get()) {
-                    return@launch
-                }
                 Log.i(TAG, "PSK after: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peerIterate.publicKey]!!.toBase64())
+                shutdownLock.set(false)
             }
         }
     }
