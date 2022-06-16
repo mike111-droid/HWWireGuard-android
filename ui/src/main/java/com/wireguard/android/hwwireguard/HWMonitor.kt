@@ -81,6 +81,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
+        mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
+        mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
         mActivity.applicationScope.launch {
             try {
                 /* Authenticate either with HSM Pin or Biometric Prompt */
