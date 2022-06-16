@@ -93,6 +93,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
+        mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
+        mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
         mActivity.applicationScope.launch {
             try {
                 authenticate()
@@ -333,19 +335,18 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to ratchet PSK for specific peer.
      */
     private fun ratchet(config: Config, peer: Peer) {
-        val ratchetManager = HWRatchetManager()
         for((counter, peerIteration) in config.peers.withIndex()) {
             /* find specific peer */
             if(peerIteration == peer) {
                 val psk = config.peers[counter].preSharedKey.get()
-                val newPSK = ratchetManager.ratchet(psk)
-                /* ratchet() can fail on some inputs => if this is the case use initPSK */
-                if(newPSK == null) {
-                    Log.i(TAG, "newPSK return as null from ratchetManager")
-                    loadNewPSK(config, initPSK, peer)
-                }else{
-                    Log.i(TAG, "newPSK is ${newPSK.toBase64()}")
-                    loadNewPSK(config, newPSK, peer)
+                if(mHWBackend == "SmartCard-HSM") {
+                    Log.i(TAG, "Using SmartCard-HSM...")
+                    /* reload PSK with newTimestamp signed by SmartCard-HSM */
+                    hsmOperation(psk.toBase64(), peerIteration)
+                }else if(mHWBackend == "AndroidKeyStore") {
+                    Log.i(TAG, "Using AndroidKeyStore...")
+                    /* reload PSK with newTimestamp signed by Android KeyStore */
+                    keyStoreOperation(psk.toBase64(), peerIteration)
                 }
             }
         }
