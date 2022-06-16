@@ -278,11 +278,11 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         /* Make sure newPSK is not null (newPSK can be null if keyStoreOperationWithBio was used which automatically loads newPSK) */
         if (newPSK != null) {
             loadNewPSK(config, newPSK)
+            /* Delete pin notification */
+            val notificationManager = mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
+            notificationManager!!.cancel(NOTIFICATION_ID)
         }
-        /* Delete pin notification */
-        val notificationManager =
-            mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
-        notificationManager!!.cancel(NOTIFICATION_ID)
+        
     }
 
     /**
