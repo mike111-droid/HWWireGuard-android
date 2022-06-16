@@ -164,7 +164,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     private fun authenticateHSM(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager) {
         /* Get alertDialogBuilder for user authentication with PIN */
-        var alertDialogBuilder = getHSMAlertDialogBuilder(schsmcs, hsmManager)
+        val alertDialogBuilder = getHSMAlertDialogBuilderHSM(schsmcs, hsmManager)
         /* If app is not in foreground add notification */
         val alertDialog: AlertDialog = alertDialogBuilder.create()
         /* Show alert dialog */
@@ -173,7 +173,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /**
      * Function to get AlertDialogBuilder for HSM authentication.
      */
-    private fun getHSMAlertDialogBuilder(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager): AlertDialog.Builder {
+    private fun getHSMAlertDialogBuilderHSM(schsmcs: SmartCardHSMCardService, hsmManager: HWHSMManager): AlertDialog.Builder {
         /* Construct alert dialog */
         val edittext = EditText(mContext)
         edittext.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -218,6 +218,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to monitor for new timestamp. If new timestamp then calculate newPSK and load it to backend.
      */
     private suspend fun monitor() {
+        /* Delay to minimize CPU usage (do not need checks every second) */
         delay(3000)
         /* Get current timestamp */
         val currentTimestamp = HWTimestamp().timestamp.toString()
@@ -227,14 +228,11 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             if (mHWBackend == "SmartCardHSM") {
                 Log.i(TAG, "Using SmartCard-HSM...")
                 /* reload PSK with newTimestamp signed by SmartCard-HSM */
-                hsmOperation(currentTimestamp!!)
+                hsmOperation(currentTimestamp)
             } else if (mHWBackend == "AndroidKeyStore") {
                 Log.i(TAG, "Using AndroidKeyStore...")
-                /* Check for minimum version to run app */
-                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    /* reload PSK with newTimestamp signed by Android KeyStore */
-                    keyStoreOperation(currentTimestamp!!)
-                }
+                /* reload PSK with newTimestamp signed by Android KeyStore */
+                keyStoreOperation(currentTimestamp)
             }
             /* update reference timestamp */
             mOldTimestamp = currentTimestamp
@@ -248,7 +246,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private fun hsmOperation(timestamp: String) {
         val hsmManager = HWHSMManager(mContext)
         /* Check which algorithm to use (RSA or AES) */
-        var newPSK: Key = if(mKeyAlgo == "RSA") {
+        val newPSK: Key = if(mKeyAlgo == "RSA") {
             /* Use RSA */
             hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.RSA, smartCardService, timestamp, 0x3)
         }else{
@@ -266,27 +264,25 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     private fun keyStoreOperation(timestamp: String) {
         /* Check for minimum version to run app */
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val keyStoreManager = HWKeyStoreManager()
-            /* Check which algorithm to use (RSA or AES) */
-            var newPSK: Key = if (mKeyAlgo == "RSA") {
-                /* Use RSA */
-                keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
-            } else {
-                /* Use AES */
-                keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
-            }
-            /* Get config so we can set new PSK and load config into WireGuardGo Backend */
-            val config = mTunnel!!.config ?: return
-            /* Make sure newPSK is not null (newPSK can be null if keyStoreOperationWithBio was used which automatically loads newPSK) */
-            if (newPSK != null) {
-                loadNewPSK(config, newPSK)
-            }
-            /* Delete pin notification */
-            val notificationManager =
-                mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
-            notificationManager!!.cancel(NOTIFICATION_ID)
+        val keyStoreManager = HWKeyStoreManager()
+        /* Check which algorithm to use (RSA or AES) */
+        val newPSK: Key = if (mKeyAlgo == "RSA") {
+            /* Use RSA */
+            keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)
+        } else {
+            /* Use AES */
+            keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
         }
+        /* Get config so we can set new PSK and load config into WireGuardGo Backend */
+        val config = mTunnel!!.config ?: return
+        /* Make sure newPSK is not null (newPSK can be null if keyStoreOperationWithBio was used which automatically loads newPSK) */
+        if (newPSK != null) {
+            loadNewPSK(config, newPSK)
+        }
+        /* Delete pin notification */
+        val notificationManager =
+            mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
+        notificationManager!!.cancel(NOTIFICATION_ID)
     }
 
     /**
@@ -310,21 +306,40 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     @SuppressLint("UnspecifiedImmutableFlag")
     fun addNotification() {
         Log.i(TAG, "Started addNotification")
+        val mBuilder = getNotificationBuilder()
+        /* Create notification channel */
+        val mNotificationManager =
+            mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "Your_channel_id"
+        val channel = NotificationChannel(
+            channelId,
+            "Channel human readable title",
+            NotificationManager.IMPORTANCE_HIGH
+        )
+        mNotificationManager.createNotificationChannel(channel)
+        mBuilder.setChannelId(channelId)
+        /* Display notification */
+        mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build())
+    }
+
+    private fun getNotificationBuilder() : NotificationCompat.Builder {
+        /* Create NotificationBuilder */
         val mBuilder = NotificationCompat.Builder(mContext, "notify_001")
+        /* Create intent to perform when notification clicked */
         val intent = Intent(mContext, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK;
-        intent.action = Intent.ACTION_MAIN;
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        intent.action = Intent.ACTION_MAIN
+        intent.addCategory(Intent.CATEGORY_LAUNCHER)
         val pendingIntent = PendingIntent.getActivity(
             mContext, 0,
             intent, PendingIntent.FLAG_UPDATE_CURRENT
         )
-
+        /* Create notification text */
         val bigText = NotificationCompat.BigTextStyle()
         bigText.bigText("Enter the pin again otherwise the VPN will stop.")
         bigText.setBigContentTitle("Enter pin")
         bigText.setSummaryText("Enter the pin again otherwise the VPN will stop.")
-
+        /* Set settings of notification */
         mBuilder.setContentIntent(pendingIntent)
         mBuilder.setSmallIcon(R.mipmap.ic_launcher_round)
         mBuilder.setContentTitle("Enter pin")
@@ -333,22 +348,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         mBuilder.setStyle(bigText)
         mBuilder.setAutoCancel(true)
         mBuilder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-
-        val mNotificationManager =
-            mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelId = "Your_channel_id"
-            val channel = NotificationChannel(
-                channelId,
-                "Channel human readable title",
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            mNotificationManager.createNotificationChannel(channel)
-            mBuilder.setChannelId(channelId)
-        }
-
-        mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build())
+        return mBuilder
     }
 
     /**

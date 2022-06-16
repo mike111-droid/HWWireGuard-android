@@ -123,6 +123,9 @@ class HWApplication : android.app.Application() {
         private lateinit var weakSelf: WeakReference<HWApplication>
 
         /* Custom change begin */
+        /**
+         * Function to get whether app is in foreground/visible.
+         */
         fun isActivityVisible(): Boolean {
             return activityVisible
         }

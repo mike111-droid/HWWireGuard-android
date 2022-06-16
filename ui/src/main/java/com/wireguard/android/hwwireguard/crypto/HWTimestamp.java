@@ -11,9 +11,8 @@ import java.text.SimpleDateFormat;
  * Class to return String with current timestamp in format "yyyy.MM.dd.HH".
  */
 public class HWTimestamp {
-    java.sql.Timestamp timestamp;
+    private java.sql.Timestamp timestamp;
     private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd.HH");
-    public HWTimestamp() { }
 
     /**
      * Function to return timestamp in the format "yyyy.MM.dd.HH"
@@ -21,6 +20,6 @@ public class HWTimestamp {
      */
     public String getTimestamp() {
         timestamp = new java.sql.Timestamp(System.currentTimeMillis());
-        return sdf.format(timestamp).toString();
+        return sdf.format(timestamp);
     }
 }

@@ -20,7 +20,6 @@ import java.security.NoSuchAlgorithmException;
  */
 public class HWRatchetManager {
     private static final String TAG = "WireGuard/RatchetManager";
-    public HWRatchetManager() { }
 
     /**
      * Function to return new key from hashed old key.
@@ -29,20 +28,20 @@ public class HWRatchetManager {
      * @param key: Old key that will be hashed.
      * @return   : New key. If exception occurred key=null.
      */
-    public Key ratchet(Key key) {
-        String str = key.toBase64();
-        MessageDigest digest = null;
+    public Key ratchet(final Key key) {
+        final String str = key.toBase64();
+        final MessageDigest digest;
         try {
             digest = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
+        } catch (final NoSuchAlgorithmException e) {
             Log.i(TAG, Log.getStackTraceString(e));
             return null;
         }
-        byte[] hash = digest.digest(str.getBytes(StandardCharsets.UTF_8));
-        Key ret = null;
+        final byte[] hash = digest.digest(str.getBytes(StandardCharsets.UTF_8));
+        Key ret;
         try {
             ret = Key.fromHex(toHexString(hash));
-        } catch (KeyFormatException e) {
+        } catch (final KeyFormatException e) {
             Log.i(TAG, Log.getStackTraceString(e));
             return null;
         }
@@ -54,14 +53,11 @@ public class HWRatchetManager {
      * @param hash: Byte array
      * @return    : String
      */
-    private static String toHexString(byte[] hash) {
-        // Convert byte array into signum representation
-        BigInteger number = new BigInteger(1, hash);
+    private static String toHexString(final byte[] hash) {
+        final BigInteger value = new BigInteger(1, hash);
 
-        // Convert message digest into hex value
-        StringBuilder hexString = new StringBuilder(number.toString(16));
+        final StringBuilder hexString = new StringBuilder(value.toString(16));
 
-        // Pad with leading zeros
         while (hexString.length() < 32) {
             hexString.insert(0, '0');
         }

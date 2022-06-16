@@ -34,13 +34,10 @@ import opencard.core.util.OpenCardPropertyLoadingException;
 
 /**
  * This class offers:
- *      1. Crypto-Operations with SmartCard-HSM (AES enc and RSA sign)
- *      2. keyList to save HardwareBackedKeys (label/alias, type, slot)
- *      3. selectedKeyLabel to identify one SmartCard-HSM key to use in operations (provides Getter and Setter Method)
- *      4. Operations to store/load keyList and selectedKeyLabel into file HSMKeys.txt
+ *      - Crypto-Operations with SmartCard-HSM (AES enc and RSA sign)
  */
 public class HWHSMManager {
-    public static final byte[] BYTES = new byte[0];
+    private static final byte[] BYTES = new byte[0];
     private static final String TAG = "WireGuard/HSMManager";
     private final Context context;
 
@@ -91,7 +88,7 @@ public class HWHSMManager {
      * @param bytes: Byte array with key.
      * @return     : Key.
      */
-    public Key bytesToKey(final byte[] bytes) throws KeyFormatException {
+    private Key bytesToKey(final byte[] bytes) throws KeyFormatException {
         final StringBuilder strSig = new StringBuilder();
         for (final byte aByte : bytes) {
             strSig.append(String.format("%02x", aByte));
@@ -104,7 +101,7 @@ public class HWHSMManager {
      * @param data: Byte array for input.
      * @return    : Byte array with output.
      */
-    public byte[] sha256(final byte[] data) throws NoSuchAlgorithmException {
+    private byte[] sha256(final byte[] data) throws NoSuchAlgorithmException {
         final MessageDigest sha256 = MessageDigest.getInstance("SHA256");
         sha256.update(data);
         return sha256.digest();
@@ -168,9 +165,9 @@ public class HWHSMManager {
      * @param keyID  : Slot of key to be used.
      * @return       : Byte array with signature.
      */
-    public byte[] hsmOperationRSA(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
+    private byte[] hsmOperationRSA(final SmartCardHSMCardService schsmcs, final byte[] digest, final byte keyID) throws CardServiceException, CardTerminalException {
         /* RSA operation on HSM */
-        SmartCardHSMRSAKey rsa2048Key = new SmartCardHSMRSAKey(keyID, "RSA-v1-5-SHA-256", (short) 2048);
+        final SmartCardHSMRSAKey rsa2048Key = new SmartCardHSMRSAKey(keyID, "RSA-v1-5-SHA-256", (short) 2048);
         return schsmcs.signHash(rsa2048Key, "SHA256withRSA", "PKCS1_V15", digest);
     }
 
@@ -181,7 +178,7 @@ public class HWHSMManager {
      * @param keyID  : Slot of key to be used.
      * @return       : Byte array with signature.
      */
-    private byte[] hsmOperationAES(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
+    private byte[] hsmOperationAES(final SmartCardHSMCardService schsmcs, final byte[] digest, final byte keyID) throws CardServiceException, CardTerminalException {
         /* 0x10 is AES CBC Encrypt */
         return schsmcs.deriveSymmetricKey(keyID, (byte) 0x10, digest);
     }

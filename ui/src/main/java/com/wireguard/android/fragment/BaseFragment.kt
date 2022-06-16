@@ -66,7 +66,9 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }else{
                 keyStoreManager.keyStoreOperation(HWTimestamp().timestamp.toString(), "aes_key", monitor.getTunnel()!!, monitor)
             }
+            /* Set indicator to false */
             monitor.startBiometricPrompt = false
+            /* Delete notifications again */
             val notificationManager =
                 requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
             notificationManager!!.cancel(HWMonitor.NOTIFICATION_ID)
