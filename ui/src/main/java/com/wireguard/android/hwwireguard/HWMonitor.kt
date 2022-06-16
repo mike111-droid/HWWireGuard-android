@@ -293,9 +293,18 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     fun loadNewPSK(config: Config, newPSK: Key) {
         mActivity.applicationScope.launch {
             for((counter, peer) in config.peers.withIndex()) {
+                if(!run.get()) {
+                    return@launch
+                }
                 Log.i(TAG, "PSK before: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peer.publicKey]!!.toBase64())
                 config.peers[counter].setPreSharedKey(newPSK)
+                if(!run.get()) {
+                    return@launch
+                }
                 HWApplication.getBackend().addConf(config)
+                if(!run.get()) {
+                    return@launch
+                }
                 Log.i(TAG, "PSK after: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peer.publicKey]!!.toBase64())
             }
         }
