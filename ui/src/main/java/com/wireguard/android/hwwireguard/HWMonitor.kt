@@ -364,7 +364,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 startBiometricPrompt = true
             /* if app is in foreground -> keyStoreOperation direct */
             }else{
-                val keyStoreManager = HWKeyStoreManager(mContext)
+                val keyStoreManager = HWKeyStoreManager()
                 /* Check which algorithm to use (RSA or AES) */
                 val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
                 var newPSK: Key = if(keyAlgo == "RSA") {
@@ -373,11 +373,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                     keyStoreManager.keyStoreOperation(timestamp, "aes_key", mTunnel!!, this)
                 }
                 initPSK = newPSK
-                //Debug.stopMethodTracing()
-                val config = mTunnel!!.getConfigAsync()
+                val config = mTunnel!!.config ?: return
                 /* delay to make sure that config is loaded */
-                // TODO: find better solution
-                delay(500)
                 if(newPSK != null) {
                     loadNewPSK(config, newPSK)
                 }
@@ -394,7 +391,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun  keyStoreOperation(timestamp: String, peer: Peer) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val keyStoreManager = HWKeyStoreManager(mContext)
+            val keyStoreManager = HWKeyStoreManager()
             val keyAlgo = mPref.getString("dropdownAlgorithms", "none")
             var newPSK: Key = if(keyAlgo == "RSA") {
                 keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this)

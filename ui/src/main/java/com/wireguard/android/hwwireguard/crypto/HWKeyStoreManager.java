@@ -78,11 +78,8 @@ public class HWKeyStoreManager {
      */
     public HWBiometricAuthenticator biometricAuthenticator = new HWBiometricAuthenticator();
     private static final String TAG = "WireGuard/KeyStoreManager";
-    private final Context context;
 
-    public HWKeyStoreManager(final Context context) throws IOException {
-        this.context = context;
-    }
+    public HWKeyStoreManager() {}
 
     /**
      * Function to remove key from AndroidKeyStore.

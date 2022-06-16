@@ -61,7 +61,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         super.onResume()
         Log.i(TAG, "onResume called...")
         if(monitor.startBiometricPrompt) {
-            val keyStoreManager =  HWKeyStoreManager(requireContext())
+            val keyStoreManager =  HWKeyStoreManager()
             /* Check which algorithm to use (RSA or AES) */
             val keyAlgo = monitor.mPref.getString("dropdownAlgorithms", "none")
             var newPSK: Key = if(keyAlgo == "RSA") {
@@ -115,10 +115,6 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }
 
             /* Custom change begin */
-            val keyStoreManager = HWKeyStoreManager(context)
-            keyStoreManager.deleteKey("rsa_key")
-            keyStoreManager.addKeyStoreKeyRSA("rsa_key", "crt.pem", "private_key.der")
-
             if(PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none") != "none") {
                 if(checked) {
                     Log.i(TAG, "Tunnel state is up, so we start the Monitor.")
