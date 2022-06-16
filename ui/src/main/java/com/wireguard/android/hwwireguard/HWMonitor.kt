@@ -100,6 +100,8 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 while(run.get()) {
                     monitor()
                 }
+                /* Reset oldTimestamp to null in case tunnel is turned on again */
+                mOldTimestamp = null
             /* Catch all expression that might be thrown by the SmartCard-HSM */
             } catch (e: Exception) {
                 Log.i(TAG, Log.getStackTraceString(e));
@@ -216,8 +218,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     fun stopMonitor() {
         Log.i(TAG, "inside stopMonitor")
-        /* Reset oldTimestamp to null in case tunnel is turned on again */
-        mOldTimestamp = null
         /* Set run to false so while-loop in startMonitor() is ended */
         run.set(false)
     }
@@ -260,6 +260,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         * -> if no:  continue */
         /* Get statistics from WireGuardGo backend */
         val config = mTunnel!!.config ?: return
+        if(!run.get()) {
+            return
+        }
         val stats = HWApplication.getBackend().getStatistics(mTunnel)
         val lastHandshakeTime = stats.lastHandshakeTime
         /* Iterate through peers to check if successful handshake occurred */
@@ -278,7 +281,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             var handshakeAttempt = stats.handshakeAttempts[peer.publicKey]
             if (handshakeAttempt != null) {
                 /* mod 20 in case handshakeAttempts go higher than 20 */
-                handshakeAttempt = handshakeAttempt.mod(20)
+                //handshakeAttempt = handshakeAttempt.mod(20)
                 /* if handshakeAttempt%20==6 => reset PSK with saved initPSK */
                 if (handshakeAttempt == 6) {
                     /* Reset PSK for exact peer */
@@ -352,11 +355,11 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * Function to update PSK with new timestamp by using Android KeyStore.
      * Android KeyStore needs notifications because in order to use key, biometric authentication must have been used in the last 6 hours.
      */
-    private fun keyStoreOperation(timestamp: String, peer: Peer?) {
+    fun keyStoreOperation(timestamp: String, peer: Peer?) {
         /* Check for minimum version to run app */
         val keyStoreManager = HWKeyStoreManager()
         /* Check which algorithm to use (RSA or AES) */
-        val newPSK: Key = if (mKeyAlgo == "RSA") {
+        val newPSK: Key? = if (mKeyAlgo == "RSA") {
             /* Use RSA */
             keyStoreManager.keyStoreOperation(timestamp, "rsa_key", mTunnel!!, this, peer)
         } else {
@@ -372,6 +375,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             val notificationManager =
                 mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
             notificationManager!!.cancel(NOTIFICATION_ID)
+            initPSK = newPSK
         }
     }
 
@@ -382,6 +386,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     fun loadNewPSK(config: Config, newPSK: Key,  peer: Peer?) {
         mActivity.applicationScope.launch {
             for((counter, peerIterate) in config.peers.withIndex()) {
+                if(!run.get()) {
+                    return@launch
+                }
                 Log.i(TAG, "PSK before: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peerIterate.publicKey]!!.toBase64())
                 if(peer == null) {
                     config.peers[counter].setPreSharedKey(newPSK)
@@ -390,6 +397,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 if(peer == peerIterate) {
                     config.peers[counter].setPreSharedKey(newPSK)
                     HWApplication.getBackend().addPSK(config)
+                }
+                if(!run.get()) {
+                    return@launch
                 }
                 Log.i(TAG, "PSK after: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peerIterate.publicKey]!!.toBase64())
             }

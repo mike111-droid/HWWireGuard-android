@@ -204,7 +204,7 @@ public class HWKeyStoreManager {
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                         .setUserAuthenticationRequired(true)
-                        .setUserAuthenticationValidityDurationSeconds(6*60*60)
+                        .setUserAuthenticationValidityDurationSeconds(60)
                         .build());
     }
 

@@ -65,11 +65,9 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             val keyStoreManager =  HWKeyStoreManager()
             /* Check which algorithm to use (RSA or AES) */
             for((peer, value) in monitor.missingPeerOperationsKeyStore) {
-                if(monitor.mKeyAlgo == "RSA") {
-                    keyStoreManager.keyStoreOperation(value, "rsa_key", monitor.getTunnel()!!, monitor, peer)
-                }else{
-                    keyStoreManager.keyStoreOperation(value, "aes_key", monitor.getTunnel()!!, monitor, peer)
-                }
+                Log.i(TAG, "peer: $peer")
+                monitor.keyStoreOperation(value, peer)
+                monitor.missingPeerOperationsKeyStore.remove(peer)
             }
             /* Set indicator to false */
             monitor.startBiometricPrompt = false
