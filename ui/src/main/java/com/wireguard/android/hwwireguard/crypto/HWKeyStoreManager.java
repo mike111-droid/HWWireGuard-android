@@ -183,8 +183,7 @@ public class HWKeyStoreManager {
                         .setUserAuthenticationValidityDurationSeconds(6*60*60)
                         .build());
     }
-
-    // TODO: clean up catch clause
+    
     /**
      * Function for keyStoreOperation.
      * @param input  : Timestamp/Init that will be signed/encrypted.
