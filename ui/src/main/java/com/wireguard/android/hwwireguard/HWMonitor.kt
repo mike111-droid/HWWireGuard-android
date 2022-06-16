@@ -75,14 +75,15 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     var mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
     /* Key algorithm (either RSA or AES) */
     var mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
+    /* List of peers that still need to have keyStoreOperation performed for them because authentication expired */
+    val missingPeerOperationsKeyStore: HashMap<Peer?, String> = HashMap()
 
     /* Added member variables for Version 2 */
     /* List with lastHandshakeTime of peer */
     var mLastHandshakeTime: HashMap<Key, Int> = HashMap()
     /* save current initPSK */
     lateinit var initPSK: Key
-    /* List of peers that still need to have keyStoreOperation performed for them because authentication expired */
-    val missingPeerOperationsKeyStore: HashMap<Peer?, String> = HashMap()
+    
 
     /**
      * Function to start the monitor process. Is stop with AtomicBoolean run. mTunnel must be set before.
