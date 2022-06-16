@@ -66,12 +66,9 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 
 /**
- * TODO: Not all characters are allowed for key labels/alias -> make sure to filter them at UI
  * This class offers:
- *      1. Crypto-Operations with AndroidKeyStore (AES enc and RSA sign)
- *      2. keyList to save HardwareBackedKeys (label/alias, type, slot=always 0 because not necessary)
- *      3. selectedKeyLabel to identify one AndroidKeyStore key to use in operations (provides Getter and Setter Method)
- *      4. Operations to store/load keyList and selectedKeyLabel into file HSMKeys.txt
+ *      - Crypto-Operations with AndroidKeyStore (AES enc and RSA sign)
+ *      - Import AES and RSA keys
  */
 public class HWKeyStoreManager {
     /**

@@ -45,12 +45,8 @@ import opencard.core.terminal.ResponseAPDU;
 import opencard.core.util.OpenCardPropertyLoadingException;
 
 /**
- * TODO: Not all characters are allowed for key labels/alias -> make sure to filter them at UI
  * This class offers:
- *      1. Crypto-Operations with SmartCard-HSM (AES___ enc and RSA sign)
- *      2. keyList to save HardwareBackedKeys (label/alias, type, slot)
- *      3. selectedKeyLabel to identify one SmartCard-HSM key to use in operations (provides Getter and Setter Method)
- *      4. Operations to store/load keyList and selectedKeyLabel into file HSMKeys.txt
+ *      - Crypto-Operations with SmartCard-HSM (AES enc and RSA sign)
  */
 public class HWHSMManager {
     public static final byte[] BYTES = new byte[0];
