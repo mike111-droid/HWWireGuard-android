@@ -71,7 +71,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /* Hardware backend (either AndroidKeyStore or SmartCard-HSM */
     var mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
     /* Key algorithm (either RSA or AES) */
-    var mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "none")
+    var mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
 
     /**
      * Function to start the monitor process.
