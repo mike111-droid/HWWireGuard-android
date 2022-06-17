@@ -410,6 +410,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     fun loadNewPSK(config: Config, newPSK: Key,  peer: Peer?) {
         mActivity.applicationScope.launch {
             for((counter, peerIterate) in config.peers.withIndex()) {
+                /* Shutdown lock to prevent tunnel from being closed right before access to getBackend() */
                 if(!run.get()) return@launch
                 shutdownLock.set(true)
                 Log.i(TAG, "PSK before: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peerIterate.publicKey]!!.toBase64())
