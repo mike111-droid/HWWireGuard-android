@@ -424,13 +424,17 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                     config.peers[counter].setPreSharedKey(newPSK)
                     HWApplication.getBackend().loadPSK(config)
                 }
-                if(peer == null) {
-                    HWApplication.getBackend().loadConf(config)
-                }
                 Log.i(TAG, "PSK after: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peerIterate.publicKey]!!.toBase64())
                 shutdownLock.set(false)
                 if(!run.get()) return@launch
             }
+            if(!run.get()) return@launch
+            shutdownLock.set(true)
+            if(peer == null) {
+                HWApplication.getBackend().loadConf(config)
+            }
+            shutdownLock.set(false)
+            if(!run.get()) return@launch
         }
     }
 
