@@ -370,6 +370,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         /* Load newPSK into GoBackend */
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, newPSK, peer)
+        /* not the same safety measure as Version 2.2 because hsmOperation is only called with currentTimestamp as input */
         initPSK = newPSK
     }
 
@@ -397,6 +398,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             val notificationManager =
                 mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
             notificationManager!!.cancel(NOTIFICATION_ID)
+            /* not the same safety measure as Version 2.2 because hsmOperation is only called with currentTimestamp as input */
             initPSK = newPSK
         }
     }
