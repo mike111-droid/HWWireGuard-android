@@ -7,7 +7,6 @@ package com.wireguard.android.fragment
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Bundle
-import android.os.Debug
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -128,7 +127,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                     /* load config to make sure PSK of config is in backend */
                     val config = tunnel.getConfigAsync()
                     delay(1000)
-                    HWApplication.getBackend().addConf(config)
+                    HWApplication.getBackend().loadConf(config)
                 }
             }
             /* Custom change end */

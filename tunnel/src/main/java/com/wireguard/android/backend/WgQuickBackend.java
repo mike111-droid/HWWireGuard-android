@@ -195,7 +195,7 @@ public final class WgQuickBackend implements Backend {
 
     /* Custom change begin */
     @Override
-    public void addConf(Config config) {
+    public void loadConf(Config config) {
         // TODO: Implement with addconf for device with Kernel support -> rooted device necessary
     }
     /* Custom change end */

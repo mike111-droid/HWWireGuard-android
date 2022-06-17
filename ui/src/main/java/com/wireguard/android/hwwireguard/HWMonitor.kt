@@ -13,7 +13,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.text.InputType
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
@@ -34,7 +33,6 @@ import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.applicationScope
 import com.wireguard.config.Config
-import com.wireguard.config.Peer
 import com.wireguard.crypto.Key
 import de.cardcontact.opencard.service.smartcardhsm.SmartCardHSMCardService
 import kotlinx.coroutines.delay
@@ -303,7 +301,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 if(!run.get()) {
                     return@launch
                 }
-                HWApplication.getBackend().addConf(config)
+                HWApplication.getBackend().loadConf(config)
                 if(!run.get()) {
                     return@launch
                 }

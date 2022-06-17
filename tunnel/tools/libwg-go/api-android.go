@@ -73,8 +73,8 @@ func init() {
 }
 
 /* Custom change begin */
-//export loadPSK
-func loadPSK(tunnelHandle int32, settings string) int32 {
+//export loadConfig
+func loadConfig(tunnelHandle int32, settings string) int32 {
     tag := cstring("WireGuard/GoBackend/" + "loadPSK")
     logger := &device.Logger{
         Verbosef: AndroidLogger{level: C.ANDROID_LOG_DEBUG, tag: tag}.Printf,

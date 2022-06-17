@@ -20,10 +20,10 @@ extern char *wgGetConfig(int handle);
 extern char *wgVersion();
 
 /* Custom change begin */
-JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_loadPSK(JNIEnv * env, jclass clazz, jint handle, jstring settings) {
+JNIEXPORT jint JNICALL Java_com_wireguard_android_backend_GoBackend_loadConfig(JNIEnv * env, jclass clazz, jint handle, jstring settings) {
     const char *settings_str = (*env)->GetStringUTFChars(env, settings, 0);
     size_t settings_len = (*env)->GetStringUTFLength(env, settings);
-    int ret = loadPSK(handle,
+    int ret = loadConfig(handle,
                       (struct go_string){
                               .str = settings_str,
                               .n = settings_len
