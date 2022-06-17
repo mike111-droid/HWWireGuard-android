@@ -283,7 +283,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 /* Handshake was successful (change saved mLastHandshakeTime and ratchet) */
                 lastHandshakeTime[peer.publicKey]?.let { mLastHandshakeTime.put(peer.publicKey, it) }
                 Log.i(TAG, "handshake was successful... Do ratchet...")
-                ratchet(config, peer)
+                ratchetOption1(config, peer)
             }
             /* Check failed handshake attempts */
             val handshakeAttempts = stats.handshakeAttempts[peer.publicKey]
@@ -334,7 +334,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /**
      * Function to ratchet PSK for specific peer.
      */
-    private fun ratchet(config: Config, peer: Peer) {
+    private fun ratchetOption1(config: Config, peer: Peer) {
         val ratchetManager = HWRatchetManager()
         for((counter, peerIteration) in config.peers.withIndex()) {
             /* find specific peer */
