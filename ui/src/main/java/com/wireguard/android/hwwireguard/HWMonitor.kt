@@ -28,7 +28,6 @@ import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.hwwireguard.crypto.HWHSMManager
 import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey
 import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
-import com.wireguard.android.hwwireguard.crypto.HWRatchetManager
 import com.wireguard.android.hwwireguard.crypto.HWTimestamp
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
@@ -283,7 +282,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 /* Handshake was successful (change saved mLastHandshakeTime and ratchet) */
                 lastHandshakeTime[peer.publicKey]?.let { mLastHandshakeTime.put(peer.publicKey, it) }
                 Log.i(TAG, "handshake was successful... Do ratchet...")
-                ratchet(config, peer)
+                ratchetOption2(config, peer)
             }
             /* Check failed handshake attempts */
             val handshakeAttempts = stats.handshakeAttempts[peer.publicKey]
@@ -334,7 +333,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /**
      * Function to ratchet PSK for specific peer.
      */
-    private fun ratchet(config: Config, peer: Peer) {
+    private fun ratchetOption2(config: Config, peer: Peer) {
         for((counter, peerIteration) in config.peers.withIndex()) {
             /* find specific peer */
             if(peerIteration == peer) {
