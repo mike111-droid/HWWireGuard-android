@@ -186,6 +186,16 @@ public final class GoBackend implements Backend {
                     continue;
                 //Log.i(TAG, line.substring(18) + " handshakeAttempts was found");
                 stats.addHandshakeAttempts(key, Integer.parseInt(line.substring(18)));
+             } else if (line.startsWith("chainKey=")) {
+                 if (key == null)
+                     continue;
+                 try {
+                     //Log.i(TAG, "chainKey=" + line.substring(9));
+                     stats.addChainKeys(key, Key.fromHex(line.substring(9)));
+                 } catch (KeyFormatException e) {
+                     //Log.i(TAG, "chainKey cannot formatted to key.");
+                     stats.addChainKeys(key, null);
+                 }
             } else if (line.startsWith("preshared_key=")) {
                 if (key == null)
                     continue;

@@ -25,6 +25,7 @@ import androidx.fragment.app.Fragment
 import com.wireguard.android.HWApplication
 import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
+import com.wireguard.android.backend.Statistics
 import com.wireguard.android.hwwireguard.crypto.HWHSMManager
 import com.wireguard.android.hwwireguard.crypto.HWHardwareBackedKey
 import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
@@ -282,7 +283,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 /* Handshake was successful (change saved mLastHandshakeTime and ratchet) */
                 lastHandshakeTime[peer.publicKey]?.let { mLastHandshakeTime.put(peer.publicKey, it) }
                 Log.i(TAG, "handshake was successful... Do ratchet...")
-                ratchetOption2(config, peer)
+                ratchetV3(config, peer, stats)
             }
             /* Check failed handshake attempts */
             val handshakeAttempts = stats.handshakeAttempts[peer.publicKey]
@@ -333,19 +334,26 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /**
      * Function to ratchet PSK for specific peer.
      */
-    private fun ratchetOption2(config: Config, peer: Peer) {
-        for((counter, peerIteration) in config.peers.withIndex()) {
+    private fun ratchetV3(config: Config, peer: Peer, stats: Statistics) {
+        for(peerIteration in config.peers) {
             /* find specific peer */
             if(peerIteration == peer) {
-                val psk = config.peers[counter].preSharedKey.get()
+                /* Get ephemeral key or something equally unique from WireGuardGo Backend */
+                var ephKey = stats.chainKeys[peerIteration.publicKey]
+                if(ephKey == null) {
+                    Log.i(TAG, "Something went wrong retrieving ephKey. Using initPSK...")
+                    ephKey = initPSK
+                }else{
+                    Log.i(TAG, "Using ephKey: ${ephKey.toBase64()}")
+                }
                 if(mHWBackend == "SmartCardHSM") {
                     Log.i(TAG, "Using SmartCard-HSM...")
                     /* reload PSK with newTimestamp signed by SmartCard-HSM */
-                    hsmOperation(psk.toBase64(), peerIteration)
+                    hsmOperation(ephKey.toBase64(), peerIteration)
                 }else if(mHWBackend == "AndroidKeyStore") {
                     Log.i(TAG, "Using AndroidKeyStore...")
                     /* reload PSK with newTimestamp signed by Android KeyStore */
-                    keyStoreOperation(psk.toBase64(), peerIteration)
+                    keyStoreOperation(ephKey.toBase64(), peerIteration)
                 }
             }
         }
