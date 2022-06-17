@@ -301,12 +301,12 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 if(!run.get()) {
                     return@launch
                 }
-                HWApplication.getBackend().loadConf(config)
                 if(!run.get()) {
                     return@launch
                 }
                 Log.i(TAG, "PSK after: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peer.publicKey]!!.toBase64())
             }
+            HWApplication.getBackend().loadConf(config)
         }
     }
 
