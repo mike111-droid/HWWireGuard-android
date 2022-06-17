@@ -369,7 +369,11 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         Log.i(TAG, "newPSK is ${newPSK.toBase64()}")
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, newPSK, peer)
-        initPSK = newPSK
+        /* only if peer null was newPSK triggered by timestamp */
+        if(peer == null) {
+            initPSK = newPSK
+        }
+
     }
 
     /**
@@ -396,7 +400,10 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             val notificationManager =
                 mContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
             notificationManager!!.cancel(NOTIFICATION_ID)
-            initPSK = newPSK
+            /* only if peer null was newPSK triggered by timestamp */
+            if(peer == null) {
+                initPSK = newPSK
+            }
         }
     }
 
