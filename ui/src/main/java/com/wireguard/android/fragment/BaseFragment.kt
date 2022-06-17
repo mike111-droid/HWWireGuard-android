@@ -25,14 +25,8 @@ import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.databinding.TunnelListItemBinding
 import com.wireguard.android.hwwireguard.HWMonitor
-import com.wireguard.android.hwwireguard.crypto.HWBiometricAuthenticator
 import com.wireguard.android.model.ObservableTunnel
-import com.wireguard.android.preference.PreferencesPreferenceDataStore
 import com.wireguard.android.util.ErrorMessages
-import com.wireguard.android.util.applicationScope
-import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
-import com.wireguard.android.hwwireguard.crypto.HWTimestamp
-import com.wireguard.crypto.Key
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -130,7 +124,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                     /* load config to make sure PSK of config is in backend */
                     val config = tunnel.getConfigAsync()
                     delay(1000)
-                    HWApplication.getBackend().addConf(config)
+                    HWApplication.getBackend().loadConf(config)
                 }
             }
             /* Wait for shutdownLock to be opened */

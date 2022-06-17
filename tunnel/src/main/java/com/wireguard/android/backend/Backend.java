@@ -67,7 +67,7 @@ public interface Backend {
     Tunnel.State setState(Tunnel tunnel, Tunnel.State state, @Nullable Config config) throws Exception;
 
     /* Custom change begin */
-    void addConf(Config config);
-    void addPSK(Config config);
+    void loadConf(Config config);
+    void loadPSK(Config config);
     /* Custom change end */
 }
