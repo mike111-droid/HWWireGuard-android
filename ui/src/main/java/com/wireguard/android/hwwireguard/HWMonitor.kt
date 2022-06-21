@@ -83,8 +83,10 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private var mLastHandshakeTime: HashMap<Key, Int> = HashMap()
     /* save current initPSK */
     lateinit var initPSK: Key
-    /* Boolean to check if already ratcheted within the 20 handshake cycle */
+    /* monitor function call-cycle leads to multiple handshakeAttempts retrievals being the same */
+    /* Prevents multiple resets for 6 failed handshakes if getStatistics gets it more than once */
     private var alreadyResetOnce = false
+    /* Does the same for 13 failed handshakes */
     private var alreadyResetTwice = false
 
     /* Added member variables for Version 3 */
@@ -96,7 +98,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
+        /* Set HashMap used to flush timestamp-PSK to false because no peer has this kind of timestamp yet */
         setAllTimestampPSKInUseToFalse()
+        /* Load preferences each time in case the settings changed between tunnel shutdown and restart */
         mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
         mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
         mActivity.applicationScope.launch {
@@ -324,12 +328,15 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     private suspend fun fixTimestampPSK(stats: Statistics, peer: Peer, config: Config, counter: Int) {
         Log.i(TAG, "Using fixTimestampPSK...")
+        /* Get ephemeral key from WireGuardGo backend */
         var ephKey = stats.chainKeys[peer.publicKey]
         var newPSK: Key? = null
+        /* If it is null, use initPSK (reset PSK) */
         if (ephKey == null) {
             Log.i(TAG, "Something went wrong retrieving ephKey. Using initPSK...")
             ephKey = initPSK
         }
+        /* Calculate newPSK with ephKey and load it with loadConfig => triggers new handshake */
         if (mHWBackend == "SmartCardHSM") {
             val hsmManager = HWHSMManager(mContext)
             /* Check which algorithm to use (RSA or AES) */
