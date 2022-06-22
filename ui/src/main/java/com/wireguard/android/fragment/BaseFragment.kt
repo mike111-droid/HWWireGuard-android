@@ -29,6 +29,8 @@ import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.hwwireguard.crypto.HWKeyStoreManager
 import com.wireguard.android.hwwireguard.crypto.HWTimestamp
+import com.wireguard.android.preference.PreferencesPreferenceDataStore
+import com.wireguard.android.util.applicationScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -110,6 +112,8 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             }
 
             /* Custom change begin */
+            monitor.mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
+            monitor.mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
             if(monitor.mHWBackend != "none") {
                 /* HWBackend is AndroidKeyStore or SmartCard-HSM */
                 if(checked) {

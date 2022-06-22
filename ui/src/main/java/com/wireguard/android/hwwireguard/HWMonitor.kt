@@ -79,8 +79,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
-        mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
-        mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
         mActivity.applicationScope.launch {
             try {
                 /* Authenticate either with HSM Pin or Biometric Prompt */
@@ -254,6 +252,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             /* Use AES */
             hsmManager.hsmOperation(HWHardwareBackedKey.KeyType.AES, smartCardService, timestamp, 0x1)
         }
+        Log.i(TAG, "newPSK: ${newPSK.toBase64()}")
         /* Load newPSK into GoBackend */
         val config = mTunnel!!.config ?: return
         loadNewPSK(config, newPSK)
@@ -304,9 +303,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 if(!run.get()) {
                     return@launch
                 }
+                HWApplication.getBackend().loadConf(config)
                 Log.i(TAG, "PSK after: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peer.publicKey]!!.toBase64())
             }
-            HWApplication.getBackend().loadConf(config)
         }
     }
 
