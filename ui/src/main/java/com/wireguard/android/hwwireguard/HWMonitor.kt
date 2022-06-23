@@ -92,8 +92,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     fun startMonitor() {
         Log.i(TAG, "inside startMonitor")
-        mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
-        mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
         mActivity.applicationScope.launch {
             try {
                 authenticate()
@@ -419,6 +417,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 Log.i(TAG, "PSK before: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peerIterate.publicKey]!!.toBase64())
                 if(peer == null) {
                     config.peers[counter].setPreSharedKey(newPSK)
+                    HWApplication.getBackend().loadConf(config)
                 }
                 if(peer == peerIterate) {
                     config.peers[counter].setPreSharedKey(newPSK)
@@ -428,13 +427,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 shutdownLock.set(false)
                 if(!run.get()) return@launch
             }
-            if(!run.get()) return@launch
-            shutdownLock.set(true)
-            if(peer == null) {
-                HWApplication.getBackend().loadConf(config)
-            }
-            shutdownLock.set(false)
-            if(!run.get()) return@launch
         }
     }
 

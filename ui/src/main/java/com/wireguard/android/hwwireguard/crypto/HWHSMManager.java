@@ -102,8 +102,8 @@ public class HWHSMManager {
      */
     public Key bytesToKey(final byte[] bytes) throws KeyFormatException {
         final StringBuilder strSig = new StringBuilder();
-        for (final byte aByte : bytes) {
-            strSig.append(String.format("%02x", aByte));
+        for (final byte Byte : bytes) {
+            strSig.append(String.format("%02x", Byte));
         }
         return Key.fromHex(strSig.toString());
     }
@@ -193,24 +193,5 @@ public class HWHSMManager {
     private byte[] hsmOperationAES(SmartCardHSMCardService schsmcs, byte[] digest, byte keyID) throws CardServiceException, CardTerminalException {
         /* 0x10 is AES CBC Encrypt */
         return schsmcs.deriveSymmetricKey(keyID, (byte) 0x10, digest);
-        /* AES operation on HSM. APDU package according to documentation. */
-        /*SmartCardHSMKey aesKey = new SmartCardHSMKey(keyID, "AES_KEY", (short) 256, "AES");
-        int length = digest.length;
-        CommandAPDU com = new CommandAPDU(9 + length);
-        com.append((byte) -128);
-        com.append((byte) 120);
-        int keyNo = aesKey.getKeyRef();
-        Log.i(TAG, "keyNo: " + keyNo);
-        com.append((byte) keyNo);
-        com.append((byte) 16);
-        com.append((byte) 0);
-        com.append((byte) (length >> 8));
-        com.append((byte) length);
-        com.append(digest);
-        com.append((byte) 0);
-        com.append((byte) 0);
-        Log.i(TAG, "com: " + Arrays.toString(com.getBytes()));
-        final ResponseAPDU rsp = schsmcs.sendCommandAPDU(com);
-        return rsp.data();*/
     }
 }

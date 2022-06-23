@@ -13,7 +13,6 @@ import java.text.SimpleDateFormat;
 public class HWTimestamp {
     java.sql.Timestamp timestamp;
     private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd.HH");
-    public HWTimestamp() { }
 
     /**
      * Function to return timestamp in the format "yyyy.MM.dd.HH"
