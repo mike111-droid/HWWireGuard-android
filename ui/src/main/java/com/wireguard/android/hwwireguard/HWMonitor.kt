@@ -72,7 +72,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /* Hardware backend (either AndroidKeyStore or SmartCard-HSM */
     var mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
     /* Key algorithm (either RSA or AES) */
-    private var mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
+    var mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
     /* List of peers that still need to have keyStoreOperation performed for them because authentication expired */
     val missingPeerOperationsKeyStore: HashMap<Peer?, String> = HashMap()
     /* Shutdown lock so access to backend does not happen when shutdown */
@@ -100,9 +100,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         Log.i(TAG, "inside startMonitor")
         /* Set HashMap used to flush timestamp-PSK to false because no peer has this kind of timestamp yet */
         setAllTimestampPSKInUseToFalse()
-        /* Load preferences each time in case the settings changed between tunnel shutdown and restart */
-        mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
-        mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
         mActivity.applicationScope.launch {
             try {
                 authenticate()
@@ -513,6 +510,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 Log.i(TAG, "PSK before: " + HWApplication.getBackend().getStatistics(mTunnel!!).presharedKey[peerIterate.publicKey]!!.toBase64())
                 if(peer == null) {
                     config.peers[counter].setPreSharedKey(newPSK)
+                    HWApplication.getBackend().loadConf(config)
                 }
                 if(peer == peerIterate) {
                     config.peers[counter].setPreSharedKey(newPSK)
@@ -522,13 +520,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                 shutdownLock.set(false)
                 if(!run.get()) return@launch
             }
-            if(!run.get()) return@launch
-            shutdownLock.set(true)
-            if(peer == null) {
-                HWApplication.getBackend().loadConf(config)
-            }
-            shutdownLock.set(false)
-            if(!run.get()) return@launch
         }
     }
 
