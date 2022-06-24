@@ -513,6 +513,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
                     config.peers[counter].setPreSharedKey(newPSK)
                     HWApplication.getBackend().loadConf(config)
                 }
+                if(!run.get()) return@launch
                 if(peer == peerIterate) {
                     config.peers[counter].setPreSharedKey(newPSK)
                     HWApplication.getBackend().loadPSK(config)
