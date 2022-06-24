@@ -503,6 +503,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      * addConf is function in BackendGo that calls custom function in api-android.go in cpp folder of tunnel.
      */
     fun loadNewPSK(config: Config, newPSK: Key,  peer: Peer?) {
+        if(!run.get()) return
         mActivity.applicationScope.launch {
             for((counter, peerIterate) in config.peers.withIndex()) {
                 if(!run.get()) return@launch
