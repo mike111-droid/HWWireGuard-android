@@ -13,6 +13,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Debug
 import android.text.InputType
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
@@ -71,6 +72,9 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     var mHWBackend = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdown", "none")
     /* Key algorithm (either RSA or AES) */
     var mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
+
+    /* Variable for execution time measurements */
+    private var counter = 0
 
     /**
      * Function to start the monitor process.
@@ -223,19 +227,34 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
         val currentTimestamp = HWTimestamp().timestamp.toString()
         /* Check if timestamp changed */
         if(currentTimestamp != mOldTimestamp) {
-            /* Check which hwBackend */
-            if (mHWBackend == "SmartCardHSM") {
-                Log.i(TAG, "Using SmartCard-HSM...")
-                /* reload PSK with newTimestamp signed by SmartCard-HSM */
-                hsmOperation(currentTimestamp)
-            } else if (mHWBackend == "AndroidKeyStore") {
-                Log.i(TAG, "Using AndroidKeyStore...")
-                /* reload PSK with newTimestamp signed by Android KeyStore */
-                keyStoreOperation(currentTimestamp)
+            if(counter < 5) {
+                Log.i(TAG, "$counter. trace")
+                //Debug.startMethodTracing("testTrace$counter.trace")
             }
-            /* update reference timestamp */
-            mOldTimestamp = currentTimestamp
+            measuredFunctionPart(currentTimestamp)
+            if(counter < 5) {
+                //Debug.stopMethodTracing()
+                counter += 1
+            }
         }
+    }
+
+    /**
+     * Function for measuring execution times for the differing versions and hardware devices
+     */
+    private fun measuredFunctionPart(currentTimestamp: String) {
+        /* Check which hwBackend */
+        if (mHWBackend == "SmartCardHSM") {
+            Log.i(TAG, "Using SmartCard-HSM...")
+            /* reload PSK with newTimestamp signed by SmartCard-HSM */
+            hsmOperation(currentTimestamp)
+        } else if (mHWBackend == "AndroidKeyStore") {
+            Log.i(TAG, "Using AndroidKeyStore...")
+            /* reload PSK with newTimestamp signed by Android KeyStore */
+            keyStoreOperation(currentTimestamp)
+        }
+        /* update reference timestamp */
+        mOldTimestamp = currentTimestamp
     }
 
     /**
