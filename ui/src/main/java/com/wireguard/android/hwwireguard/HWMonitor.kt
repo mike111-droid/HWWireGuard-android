@@ -73,9 +73,6 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /* Key algorithm (either RSA or AES) */
     var mKeyAlgo = PreferencesPreferenceDataStore(applicationScope, HWApplication.getPreferencesDataStore()).getString("dropdownAlgorithms", "RSA")
 
-    /* Variable for execution time measurements */
-    private var counter = 0
-
     /**
      * Function to start the monitor process.
      * Also handles authentication of user at start of tunnel.
@@ -209,12 +206,13 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     /**
      * Function to stop monitor process.
      */
-    fun stopMonitor() {
+    suspend fun stopMonitor() {
         Log.i(TAG, "inside stopMonitor")
-        /* Reset oldTimestamp to null in case tunnel is turned on again */
-        mOldTimestamp = null
         /* Set run to false so while-loop in startMonitor() is ended */
         run.set(false)
+        delay(1000)
+        /* Reset oldTimestamp to null in case tunnel is turned on again */
+        mOldTimestamp = null
     }
 
     /**
@@ -223,19 +221,15 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
     private suspend fun monitor() {
         /* Delay to minimize CPU usage (do not need checks every second) */
         delay(3000)
+        if(!run.get()) return
         /* Get current timestamp */
         val currentTimestamp = HWTimestamp().timestamp.toString()
         /* Check if timestamp changed */
         if(currentTimestamp != mOldTimestamp) {
-            if(counter < 5) {
-                Log.i(TAG, "$counter. trace")
-                //Debug.startMethodTracing("testTrace$counter.trace")
-            }
+            //Log.i(TAG, "Take trace")
+            //Debug.startMethodTracing("testTrace.trace")
             measuredFunctionPart(currentTimestamp)
-            if(counter < 5) {
-                //Debug.stopMethodTracing()
-                counter += 1
-            }
+            //Debug.stopMethodTracing()
         }
     }
 

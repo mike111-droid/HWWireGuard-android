@@ -130,7 +130,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
                 if(checked) {
                     /* load config to make sure PSK of config is in backend */
                     val config = tunnel.getConfigAsync()
-                    delay(1000)
+                    delay(2000)
                     HWApplication.getBackend().loadConf(config)
                 }
             }
