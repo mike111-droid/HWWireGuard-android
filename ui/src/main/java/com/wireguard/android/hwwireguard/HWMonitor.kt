@@ -13,6 +13,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Debug
 import android.text.InputType
 import android.text.method.PasswordTransformationMethod
 import android.util.Log
@@ -278,9 +279,19 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
             }
             /* update reference timestamp */
             mOldTimestamp = currentTimestamp
+            return
         }
+        /*if(counter < 5) {
+            Log.i(TAG, "new trace: monitorV2ratchetV3$counter.trace")
+            Debug.startMethodTracing("monitorV2ratchetV3$counter.trace")
+        }*/
         monitorV2Extension()
+        /*if(counter < 5) {
+            Debug.stopMethodTracing()
+            counter += 1
+        }*/
     }
+    //private var counter = 0
 
     /**
      * Function to check if handshake was successful.
