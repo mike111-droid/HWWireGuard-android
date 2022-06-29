@@ -234,7 +234,7 @@ class HWMonitor(context: Context, activity: Activity, fragment: Fragment) {
      */
     private suspend fun monitor() {
         /* Delay to minimize CPU usage (do not need checks every second) */
-        delay(3000)
+        delay(4000)
         /* Get current timestamp */
         val currentTimestamp = HWTimestamp().timestamp.toString()
         /* Check if timestamp changed */
