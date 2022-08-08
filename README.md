@@ -4,7 +4,7 @@ This is an implementation of WireGuardHSM for Android using the WireGuardGoBacke
 This is the staging branch to prevent pollution in the main branch.
 
 ## Functionality
-Version 2.1 improves by changing the PSK with every successful handshake by calculating newPSK = SHA256(oldPSK). This changes the PSK every two minutes and increase the frequency of PSK-changes. As a result, a stolen PSK can only be used for smaller time frames.
+Version 2.1 improves by changing the PSK with every successful handshake by calculating newPSK = SHA256(oldPSK). This changes the PSK every two minutes and increase the frequency of PSK-changes. As a result, a stolen PSK can only be used for smaller time frames. initPSK is still calculated the same.
 
 ## Structure
 HWWireGuard is an extension of the existing WireGuard and, as such, additional code changes need to be marked. The main new classes are in the *ui* package in the subfolder *hwwireguard*. Other changes that are necessary in the code iteself sould be marked by the tags:  
