@@ -2,10 +2,10 @@
 
 This is an implementation of WireGuardHSM/HWWireGuard for Android using the WireGuardGoBackend. The different implemented versions are in different branches.
 
-1. *staging_v1*: This is the simplest HWWireGuard version with a deterministic PSK for the whole hour.
-2. *staging_v2_1*: Here the initial PSK is generated with hardware operation. Afterwards PSKs change with every handshake (every 2 minutes) using SHA256.
-3. *staging_v2_2*: Here the initial PSK is generated with hardware operation. Afterwards PSKs change with every handshake (every 2 minutes) using hardware operation.
-4. *staging_v3_final*: Here the initial PSK generated with deterministic TIMESTAMP input using hardware operation. Afterwards PSKs change with every handshake using the ephemeral key of the initiator as input for the hardware operation.
+1. **staging_v1**: This is the simplest HWWireGuard version with a deterministic PSK for the whole hour.
+2. **staging_v2_1**: Here the initial PSK is generated with hardware operation. Afterwards PSKs change with every handshake (every 2 minutes) using SHA256.
+3. **staging_v2_2**: Here the initial PSK is generated with hardware operation. Afterwards PSKs change with every handshake (every 2 minutes) using hardware operation.
+4. **staging_v3_final**: Here the initial PSK generated with deterministic TIMESTAMP input using hardware operation. Afterwards PSKs change with every handshake using the ephemeral key of the initiator as input for the hardware operation.
 
 Each branch discribes the actual implementation in more detail.
 
