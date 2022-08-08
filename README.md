@@ -3,6 +3,9 @@
 This is an implementation of WireGuardHSM for Android using the WireGuardGoBackend.  
 This is the staging branch to prevent pollution in the main branch.
 
+## Functionality
+The first version of HWWireGuard is also the most fundamental and straightforward to design. The idea is to use either the SmartCard-HSM or Android KeyStores to generate a PSK. By doing this, the PSK depends on a secret from a hardware device, and an attacker can only calculate it by either extracting the key or stealing the devices and forging the authentication. The calculated PSK needs to be the same for both communication peers.
+
 ## Structure
 The main new classes are in the *ui* package in the subfolder *hwwireguard*. Other changes that are necessary in the code iteself sould be marked by the tags:  
 /\* Custom change begin \*/  
