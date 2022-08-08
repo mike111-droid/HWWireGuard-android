@@ -19,7 +19,7 @@ HWWireGuard is an extension of the existing WireGuard and, as such, additional c
 
 ```
 $ git clone --recurse-submodules https://github.com/mike111-droid/HWWireGuard-android
-$ git clone https://github.com/mike111-droid/WireGuardHSM-androidGoBackendmod
+$ git clone https://github.com/mike111-droid/HWWireGuard-androidGoBackendmod
 $ cd WireGuardHSM-android
 $ ./gradlew assembleRelease
 ```
