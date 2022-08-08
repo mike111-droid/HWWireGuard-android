@@ -10,7 +10,7 @@ This is an implementation of WireGuardHSM/HWWireGuard for Android using the Wire
 Each branch discribes the actual implementation in more detail.
 
 ## Structure
-The main new classes are in the *ui* package in the subfolder *hwwireguard*. Other changes that are necessary in the code iteself sould be marked by the tags:  
+HWWireGuard is an extension of the existing WireGuard and, as such, additional code changes need to be marked. The main new classes are in the *ui* package in the subfolder *hwwireguard*. Other changes that are necessary in the code iteself sould be marked by the tags:  
 /\* Custom change begin \*/  
 *\/\/ Additional Code*  
 /\* Custom change end \*/  
