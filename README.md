@@ -3,6 +3,10 @@
 This is an implementation of WireGuardHSM for Android using the WireGuardGoBackend.  
 This is the staging branch to prevent pollution in the main branch.
 
+## Functionality
+
+A big problem the previous versions have is that all PSKs are deterministic. In Version 1, the same PSK is used for the whole hour and possibly for multiple peer connections if they share the same hardware key. In Version 2, the PSK changes but is again deterministic and the same for all HWWireGuard connections with the same hardware key. A unique PSK generated from a unique parameter of the handshake is much more preferable. Such a parameter is the ephemeral key of the initiator. The inital PSK still is calucluated with initPSK = HWOperation(TIMESTAMP), but all following newPSK = HWOperation(EPH_KEY_INIT_LAST_HANDSHAKE).
+
 ## Structure
 HWWireGuard is an extension of the existing WireGuard and, as such, additional code changes need to be marked. The main new classes are in the *ui* package in the subfolder *hwwireguard*. Other changes that are necessary in the code iteself sould be marked by the tags:  
 /\* Custom change begin \*/  
@@ -13,7 +17,7 @@ HWWireGuard is an extension of the existing WireGuard and, as such, additional c
 
 ```
 $ git clone --recurse-submodules https://github.com/mike111-droid/HWWireGuard-android
-$ git clone https://github.com/mike111-droid/WireGuardHSM-androidGoBackend
+$ git clone https://github.com/mike111-droid/HWWireGuard-androidGoBackend
 $ cd WireGuardHSM-android
 $ ./gradlew assembleRelease
 ```
