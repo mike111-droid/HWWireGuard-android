@@ -5,6 +5,8 @@ This is the staging branch to prevent pollution in the main branch.
 
 ## Functionality
 
+Version 2.2 improves by changing the PSK with every successful handshake by calculating newPSK = HWOperation(oldPSK), where HWOperation is a hardware-backed operation with either Android KeyStores or the SmartCard-HSM. This changes the PSK every two minutes and increase the frequency of PSK-changes. As a result, a stolen PSK can only be used for smaller time frames.
+
 
 
 ## Structure
