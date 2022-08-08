@@ -1,6 +1,6 @@
 # Android GUI for [WireGuardHSM](https://github.com/mike111-droid/WireguardHSM-linux)/HWWireGuard
 
-This is an implementation of WireGuardHSM/HWWireGuard for Android using the WireGuardGoBackend. The different implemented versions are in different branches.
+This is an implementation of WireGuardHSM/HWWireGuard for Android using the WireGuardGoBackend. HWWireGuard allows users to decide whether to use Android KeyStores or the SmartCard-HSM for the hardware-backed operations that need to be performed. Furthermore, there exist four different versions that differ in several aspects and that are implemented in the different branches described below.
 
 1. **staging_v1**: This is the simplest HWWireGuard version with a deterministic PSK for the whole hour.
 2. **staging_v2_1**: Here the initial PSK is generated with hardware operation. Afterwards PSKs change with every handshake (every 2 minutes) using SHA256.
