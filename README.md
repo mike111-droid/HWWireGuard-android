@@ -24,6 +24,10 @@ $ cd WireGuardHSM-android
 $ ./gradlew assembleRelease
 ```
 
+## Documentation
+This project was part of my Bachelor thesis. As such, I have linked my thesis in the folder *doc*. Addititionally to the explanation how HWWireGuard is structured, it also contains the performance comparisons between the SmartCard-HSM and Androids internal Android KeyStore solution.
+
+
 ## Importing the sc-hsm-android-library
 
 In order to use HWWireGuard-android we need the *sc-hsm-android-library*. This library is not opensourced and only accessiable to users with a [SmartCard-HSM](https://www.smartcard-hsm.com/links.html) from CardContact Systems GmbH. Access is possable through registering at the [CardContact Developer Network](https://www.cardcontact.de/cdn/activation.html) (CDN) and than getting access to the [GIT Repository](https://www.cardcontact.de/cdn/gitaccess.html).  
