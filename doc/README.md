@@ -1,4 +1,4 @@
-This folder contains the PDF *WireGuardKeyStore vs. WireGuardHSM* which is the Bachelor Thesis this project is based upon. 
+This folder contains the PDF *WireGuardKeyStore vs. WireGuardHSM* which is the Bachelor Thesis this project is based upon. The paper explains in more detail the reasoning behind certain design choices, as well as, a comparison of both Hardware-backed solutions.
 
 # Abstract
 Android developers use Android KeyStores to secure the cryptographic keys of their applications. Android KeyStores are implemented by the vendor-specific Keymaster Trusted Application (TA), which is hardware-protected by the Trusted Execution Environment (TEE). Unfortunately, past research has called their security into question by uncovering several vulnerabilities caused by lackluster TEE implementations with proprietary undocumented designs. To free users and developers from this dependency on mobile phone manufacturers, we propose the SmartCard-HSM as a possible replacement for the Keymaster TA. The SmartCard-HSM is an external Hardware-Security Module (HSM) in microSD card format supported on Android devices.
